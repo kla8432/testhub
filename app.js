@@ -24,7 +24,15 @@ function toast(){ $('toast').textContent='บันทึกข้อมูล�
 function hours(r){return (new Date(r.end)-new Date(r.start))/3600000;}
 function latest(){return CalView.latest(db.cal);}
 function dashboard(){const now=new Date(),month=new Date(now.getFullYear(),now.getMonth(),1),next=new Date(now.getFullYear(),now.getMonth()+1,1);const overlap=(r,s,e)=>Math.max(0,Math.min(new Date(r.end),e)-Math.max(new Date(r.start),s))/3600000;const total=db.downtime.reduce((s,r)=>s+overlap(r,month,next),0);const low=db.stock.filter(r=>r.qty<=r.threshold),last=latest();const counts=[['เครื่องที่มีประวัติคาลิเบรต',last.length,'นับตามรหัสเครื่อง'],['ผลคาลิเบรตล่าสุด',`${last.filter(r=>r.result==='Pass').length} / ${last.filter(r=>r.result==='Fail').length}`,'ผ่าน / ไม่ผ่าน'],['Downtime เดือนนี้',total.toFixed(1),'ชั่วโมง · นับเวลาที่อยู่ในเดือนนี้'],['อะไหล่ถึงจุดแจ้งเตือน',low.length,'รายการที่ต้องตรวจสอบ']];let bars=[];for(let i=5;i>=0;i--){const s=new Date(now.getFullYear(),now.getMonth()-i,1),e=new Date(now.getFullYear(),now.getMonth()-i+1,1);bars.push({label:s.toLocaleDateString('th-TH',{month:'short'}),value:db.downtime.reduce((n,r)=>n+overlap(r,s,e),0)});}const max=Math.max(1,...bars.map(r=>r.value));return `${CalView.summary(db.cal)}<div class="cards">${counts.map(r=>`<div class="card"><span class="muted">${r[0]}</span><div class="value">${r[1]}</div><small>${r[2]}</small></div>`).join('')}</div><div class="grid"><div class="panel"><h2>Downtime ย้อนหลัง 6 เดือน</h2><p class="muted">เวลาหยุดเครื่องรวม (ชั่วโมง)</p>${bars.map(r=>`<div class="bar-row"><span>${r.label}</span><div class="bar"><span style="width:${r.value/max*100}%"></span></div><span>${r.value.toFixed(1)} ชม.</span></div>`).join('')}</div><div class="panel"><h2>อะไหล่ที่ต้องเติม</h2><p class="muted">จำนวนคงเหลือน้อยกว่าหรือเท่ากับจุดแจ้งเตือน</p>${low.length?low.map(r=>`<div class="row"><span>${esc(r.name)}<br><small class="muted">${esc(r.code)}</small></span>${badge(`เหลือ ${r.qty}`,true)}</div>`).join(''):'<div class="empty">ไม่มีรายการที่ต้องเติม</div>'}</div></div><div class="panel"><h2>สถานะคาลิเบรตล่าสุดของแต่ละเครื่อง</h2>${CalView.overview(db.cal)}</div>`;}
-function calTable(rows){return table(['รหัสเครื่อง','รุ่น / ชื่อเครื่อง','วันที่คาลิเบรต','ผล','ช่างผู้ดำเนินการ','หมายเหตุ'],rows.map(r=>[esc(r.machine),esc(r.model),esc(r.date),badge(r.result,r.result==='Fail'),esc(r.tech),esc(r.note)]));}
+function calTable(rows){const admin=currentUser?.role==='admin';return table(['รหัสเครื่อง','รุ่น / ชื่อเครื่อง','วันที่คาลิเบรต','ผล','ช่างผู้ดำเนินการ','หมายเหตุ',...(admin?['จัดการ']:[])],rows.map(r=>[esc(r.machine),esc(r.model),esc(r.date),badge(r.result,r.result==='Fail'),esc(r.tech),esc(r.note),...(admin?[`<button class="secondary" data-delete-cal="${esc(r.id)}" ${!connected?'disabled':''}>ลบประวัติ</button>`]:[])]));}
+async function deleteCalibration(button){
+ const r=db.cal.find(r=>r.id===button.dataset.deleteCal);
+ if(!r||currentUser?.role!=='admin'||!connected)return;
+ if(!confirm(`ลบประวัติแคลเครื่อง ${r.machine} (${r.model}) วันที่ ${r.date} ผล ${r.result}?\nสถานะ PM จะคำนวณจากประวัติที่เหลือ`))return;
+ button.disabled=true;
+ try{db=await api('/api/mutate',{requestId:crypto.randomUUID(),action:'delete',kind:'cal',id:r.id,version:r.version});render();toast();}
+ catch(e){alert(e.message);button.disabled=false;}
+}
 function rowCategory(row) { return StockView.category(row); }
 function list(q = searchQuery) {
   if (page === 'stock') return StockView.table(StockView.filter(db.stock, stockCategory, q), currentUser?.role !== 'viewer', connected);
@@ -63,6 +71,7 @@ function render() {
   if($('setup-model')) $('setup-model').onchange=e=>{setupModel=e.target.value;updateResults();};
   if($('cal-status')) $('cal-status').onchange=e=>{calStatus=e.target.value;updateResults();};
   if(page==='cal') $('content').insertAdjacentHTML('beforeend',`<details class="panel"><summary>ประวัติการแคลทั้งหมด (${db.cal.length} รายการ)</summary>${calTable([...db.cal].sort((a,b)=>b.date.localeCompare(a.date)||b.created-a.created))}</details>`);
+  document.querySelectorAll('[data-delete-cal]').forEach(button=>button.onclick=()=>deleteCalibration(button));
   $('search').oninput = e => { searchQuery = e.target.value; updateResults(); };
   if (focused) { $('search').focus(); $('search').setSelectionRange(...selection); }
   const scroller = document.querySelector('.stock-table-scroll'); if (scroller) scroller.scrollLeft = scrollLeft;
