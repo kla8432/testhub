@@ -22,5 +22,9 @@ window.TestHubCloud=(()=>{
  }
  async function login(email,password){const s=await auth('token?grant_type=password',{email,password});save(s);try{await request('/api/session');}catch(e){clear();throw e;}}
  async function download(){const state=await request('/api/export');const href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=href;a.download='testhub-export.json';a.click();setTimeout(()=>URL.revokeObjectURL(href),1000);}
- return {request,login,download,base};
+ async function register(email,password,name){
+  if(!name||name.length>200||password.length<12||password.length>128)throw Error('กรุณาตรวจชื่อและรหัสผ่านอย่างน้อย 12 ตัวอักษร');
+  return auth('signup',{email,password,data:{name}});
+ }
+ return {request,login,register,download,base};
 })();
