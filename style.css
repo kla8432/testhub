@@ -20,3 +20,30 @@ button:focus-visible{outline:3px solid #65bfa8;outline-offset:3px}
 @media(max-width:640px){.stock-form-grid{grid-template-columns:1fr}.category-chip{padding:10px 12px}.stock-table-scroll{max-height:60vh}}
 
 .guide-direct{display:flex;align-items:center;gap:16px;flex-wrap:wrap;text-decoration:none;color:inherit;cursor:pointer}.guide-direct strong{font-size:1.15rem}.guide-direct>span:last-child{margin-left:auto;color:#287060}.guide-direct:hover{background:#edf5f1}.guide-direct:focus-visible{outline:3px solid #287060;outline-offset:3px}
+
+/* Shared blue theme for the dashboard and account pages. */
+:root{--blue:#1d4ed8;--blue-dark:#172554;--blue-light:#dbeafe;background:#f5f8ff}
+aside,.auth-page{background:var(--blue-dark)}
+aside{color:#dbeafe}.brand b{color:#93c5fd}
+aside>small,.aside-note{color:#a5b9df}.aside-note strong{color:#dbeafe}
+button{background:var(--blue)}
+nav button{background:transparent;color:#c7d7f4}
+nav button.active{background:#1e40af;color:#eff6ff}
+nav button:hover{background:#1e3a8a}
+.local{color:#1e40af;background:#dbeafe}
+.eyebrow{color:var(--blue)!important}
+a{color:var(--blue)}
+input:focus,textarea:focus,select:focus{outline-color:#60a5fa}
+button:focus-visible{outline-color:#60a5fa}
+.secondary{background:#eaf1ff;color:#334e7d}
+.category-chip{background:#eff6ff;color:#334e7d;border-color:#dbeafe}
+.category-chip:hover{background:#dbeafe;border-color:#93c5fd}
+.category-chip.selected{background:var(--blue);border-color:var(--blue);color:white}
+.stock-table tbody tr:hover{background:#f0f6ff}
+.guide-direct>span:last-child{color:var(--blue)}
+.guide-direct:hover{background:#eff6ff}
+.guide-direct:focus-visible{outline-color:#60a5fa}
+.bar span{background:#3b82f6}
+#toast{background:#1e3a8a}
+dialog{box-shadow:0 20px 80px #17255440}
+dialog::backdrop{background:#17255477}
