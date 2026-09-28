@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
-const pages={dashboard:['ภาพรวมระบบ','ติดตามสถานะเครื่องเทสและงานซ่อมบำรุงในที่เดียว','▦'],cal:['บันทึกคาลิเบรต','บันทึกผลการสอบเทียบ และตรวจสอบประวัติของแต่ละเครื่อง','✓'],setup:['คู่มือเซ็ตอัพ','รวบรวมวิธีต่อสายและขั้นตอนการตั้งค่าแยกตามรุ่น','▤'],downtime:['บันทึก Downtime','บันทึกชื่อรุ่น Order วันที่ทำ อาการและวิธีการแก้','◷'],count:['นับสต็อกรายสัปดาห์','กรอกจำนวนจากการตรวจนับ แล้วบันทึกเพื่ออัปเดตคงเหลือ','▣'],stock:['จัดการสต็อก','ติดตามอะไหล่คงเหลือและประวัติการเบิกจ่าย','▧']};
-let db={cal:[],setup:[],downtime:[],stock:[],moves:[],revision:-1},page=new URLSearchParams(location.search).get('page')==='count'?'count':'dashboard',currentUser=null,connected=false;
+const pages={dashboard:['ภาพรวมระบบ','ติดตามสถานะเครื่องเทสและงานซ่อมบำรุงในที่เดียว','▦'],cal:['บันทึกคาลิเบรต','บันทึกผลการสอบเทียบ และตรวจสอบประวัติของแต่ละเครื่อง','✓'],setup:['คู่มือเซ็ตอัพ','รวบรวมวิธีต่อสายและขั้นตอนการตั้งค่าแยกตามรุ่น','▤'],downtime:['บันทึก Downtime','บันทึกชื่อรุ่น Order วันที่ทำ อาการและวิธีการแก้','◷'],stock:['จัดการสต็อก','ติดตามอะไหล่คงเหลือและประวัติการเบิกจ่าย','▧']};
+let db={cal:[],setup:[],downtime:[],stock:[],moves:[],revision:-1},page=['count','stock'].includes(new URLSearchParams(location.search).get('page'))?'stock':'dashboard',currentUser=null,connected=false;
 async function api(url,data){return TestHubCloud.request(url,data);}
 function connection(ok) {
   connected = ok;
@@ -65,6 +65,8 @@ function list(q = searchQuery) {
   if (page === 'downtime') return table(['ชื่อรุ่น','Order','วันที่ทำ','อาการ / สาเหตุ','วิธีการแก้'],rows.map(r=>[esc(r.model||r.machine||'—'),esc(r.order||'—'),esc(r.date||r.start?.slice(0,10)||'—'),esc(r.cause),esc(r.action)]));
   return rows.length ? rows.map(r => /^https:\/\/kla8432\.github\.io\/testhub\/setup-guide\.html\?model=[a-z]+$/.test(r.url||'') ? `<a class="guide guide-direct" href="${r.url==='/guides/santorini/index.html'?'guide.html':esc(r.url)}"><strong>${esc(r.model)} Setup</strong><span class="muted">${esc(r.title)}</span><span>เปิดคู่มือ →</span></a>` : r.url === '/guides/santorini/index.html' ? `<a class="guide guide-direct" href="guide.html"><strong>แคล Santorini</strong><span class="muted">การแคล UA Mitsen · คู่มือพร้อมรูปประกอบ</span><span>เปิดคู่มือ →</span></a>` : `<details class="guide"><summary>${esc(r.model)} <span class="muted">· ${esc(r.title)}</span></summary><p class="muted">ผู้จัดทำ: ${esc(r.tech)}</p><h3>การต่อสาย / จุดเชื่อมต่อ</h3><pre>${esc(r.wiring)}</pre><h3>ขั้นตอนการเซ็ตอัพ</h3><pre>${esc(r.steps)}</pre>${r.url ? `<a href="${r.url==='/guides/santorini/index.html'?'guide.html':esc(r.url)}">เปิดคู่มือพร้อมรูปประกอบ ↗</a>` : ''}</details>`).join('') : '<div class="empty">ไม่พบคู่มือ</div>';
 }
+let stockMode=new URLSearchParams(location.search).get('page')==='count'||new URLSearchParams(location.search).get('view')==='count'?'count':'list';
+function stockTabs(){return `<div class="count-tabs" role="group" aria-label="ฟังก์ชัน Stock"><button type="button" data-stock-view="list" class="${stockMode==='list'?'':'secondary'}" aria-pressed="${stockMode==='list'}">รายการ Stock</button><button type="button" data-stock-view="count" class="${stockMode==='count'?'':'secondary'}" aria-pressed="${stockMode==='count'}">นับสต็อกรายสัปดาห์</button></div>`;}
 let stockCategory = '', searchQuery = '', calStatus='all', setupCategory='', setupModel='';
 function stockCategories() { return StockView.categories(db.stock); }
 function updateResults() {
@@ -83,17 +85,17 @@ function render() {
   $('nav').innerHTML = Object.entries(pages).map(([k,v])=>`<button data-page="${k}" class="${page===k?'active':''}">${v[2]}　${v[0]}</button>`).join('');
   $('title').textContent = $('breadcrumb').textContent = pages[page][0];
   $('subtitle').textContent = pages[page][1];
-  $('add').hidden = (page === 'dashboard' || page === 'setup' || page === 'count') || !currentUser || currentUser.role === 'viewer' || (page === 'stock' && currentUser.role !== 'admin');
+  $('add').hidden = (page === 'dashboard' || page === 'setup' || (page === 'stock' && stockMode === 'count')) || !currentUser || currentUser.role === 'viewer' || (page === 'stock' && currentUser.role !== 'admin');
   $('add').disabled = !connected;
-  if(page==='count'){
+  if(page==='stock'&&stockMode==='count'){
     if(!currentUser){$('content').textContent='กำลังโหลดข้อมูล';return;}
-    $('content').innerHTML='<div id="weekly-count-root"></div>';
+    $('content').innerHTML=stockTabs()+'<div id="weekly-count-root"></div>';
     WeeklyCount.mount($('weekly-count-root'),{db,user:currentUser,connected,api,onState:next=>{db=next;}});return;
   }
   WeeklyCount.unmount();
   if (page === 'dashboard') { $('content').innerHTML = dashboard(); return; }
   const stock = page === 'stock';
-  $('content').innerHTML = ` ${page==='cal'?CalView.summary(db.cal):''}<div class="panel ${stock?'stock-panel':''}">
+  $('content').innerHTML = `${stock?stockTabs():''} ${page==='cal'?CalView.summary(db.cal):''}<div class="panel ${stock?'stock-panel':''}">
     ${page==='setup'?`<div class="category-bar"><button class="secondary" data-setup-category="" aria-pressed="${!setupCategory}">ทุกหมวด</button>${[...new Set(db.setup.map(r=>r.category||'คู่มือเซ็ตอัพ'))].map(c=>`<button class="secondary" data-setup-category="${esc(c)}" aria-pressed="${setupCategory===c}">${esc(c)}</button>`).join('')}</div><label>เลือกรุ่น<select id="setup-model"><option value="">ทุกรุ่น</option>${[...new Set(db.setup.filter(r=>!setupCategory||(r.category||'คู่มือเซ็ตอัพ')===setupCategory).map(r=>r.model))].map(m=>`<option ${setupModel===m?'selected':''} value="${esc(m)}">${esc(m)}</option>`).join('')}</select></label>`:''}${stock ? StockView.categoryBar(db.stock, stockCategory) : ''}${page==='cal'?`<h2>สถานะล่าสุดของแต่ละเครื่อง</h2><label>กรองสถานะ<select id="cal-status">${[['all','ทุกสถานะ'],['fail','ไม่ผ่าน'],['overdue','เกินกำหนด'],['due','ครบกำหนดวันนี้'],['soon','ใกล้ครบกำหนด'],['ok','ปกติ']].map(([v,t])=>`<option value="${v}" ${calStatus===v?'selected':''}>${t}</option>`).join('')}</select></label>`:''}
     <div class="toolbar"><input id="search" aria-label="ค้นหารายการ" placeholder="${stock?'ค้นหา MPN, Part name, รายละเอียด หรือผู้ผลิต…':'ค้นหารหัสเครื่อง รุ่น หรือรายการ…'}" value="${esc(searchQuery)}">${stock?'<span id="result-count" class="muted" role="status"></span>':''}</div>
     <div id="results"></div></div>
@@ -112,15 +114,17 @@ let editing=null,moving=null;
 function openForm(id=null,move=false){if(!currentUser||currentUser.role==='viewer'||!connected||(page==='stock'&&!move&&currentUser.role!=='admin'))return;editing=id;moving=move?id:null;const r=id?db[page].find(r=>r.id===id):{};if(!r)return;pendingRequest=null;formVersion=r.version;$('form-title').textContent=move?`รับเข้า / เบิกออก · ${r.name}`:pages[page][0];$('error').textContent='';let f='';if(move)f='<label>ประเภท<select name="direction"><option value="in">รับเข้า</option><option value="out">เบิกออก</option></select></label>'+field('qty','จำนวน','number')+field('tech','ผู้ดำเนินการ')+field('note','เหตุผล / เลขที่งาน');else if(page==='cal')f=field('machine','รหัสเครื่อง')+'<label>ประเภทเครื่อง *<select name="model" required><option value="LF">LF</option><option value="LH">LH</option><option value="IBAS">IBAS</option></select></label>'+field('date','วันที่คาลิเบรต','date',CalView.today())+'<label>ผลการคาลิเบรต<select name="result"><option>Pass</option><option>Fail</option></select></label>'+field('tech','ช่างผู้ดำเนินการ')+field('note','หมายเหตุ','textarea','',false);else if(page==='setup')f=field('category','หมวดคู่มือ','text',r.category||'คู่มือเซ็ตอัพ')+field('model','รุ่นเครื่อง','text',r.model)+field('title','ชื่อคู่มือ','text',r.title)+field('wiring','การต่อสาย: สายใด → ช่องใด','textarea',r.wiring)+field('steps','ขั้นตอนการตั้งค่า (แยกบรรทัดตามลำดับ)','textarea',r.steps)+field('url','ลิงก์รูปการต่อสาย / คู่มือ','text',r.url,false)+field('tech','ผู้จัดทำ','text',r.tech);else if(page==='downtime')f=field('model','ชื่อรุ่น')+field('order','Order')+field('date','วันที่ทำ','date',CalView.today())+field('cause','อาการ / สาเหตุ','textarea')+field('action','วิธีการแก้','textarea');else f=StockView.fields(db.stock,stockCategory,r);$('fields').innerHTML=f;const tech=$('form').elements.tech;if(tech){tech.value=currentUser.name;tech.readOnly=true;}if(currentUser.role==='viewer')return;$('dialog').showModal();}
 $('nav').onclick = e => {
   const button=e.target.closest('[data-page]');
-  if(button){ page=button.dataset.page; searchQuery=''; render(); }
+  if(button){ page=button.dataset.page; stockMode='list'; searchQuery=''; render(); }
 };
 $('add').onclick=()=>openForm();
 $('close').onclick=()=>$('dialog').close();
 $('content').onclick=e=>{
+  const stockTab=e.target.closest('[data-stock-view]');
+  if(stockTab){stockMode=stockTab.dataset.stockView;render();return;}
   const full=e.target.closest('[data-fullscreen]');
   if(full){if(document.fullscreenElement)document.exitFullscreen?.();else document.documentElement.requestFullscreen?.().catch(()=>{});return;}
   const jump=e.target.closest('[data-go]');
-  if(jump){page=jump.dataset.go;searchQuery=jump.dataset.machine||jump.dataset.query||'';calStatus=jump.dataset.filter||'all';stockCategory='';render();return;}
+  if(jump){page=jump.dataset.go;stockMode='list';searchQuery=jump.dataset.machine||jump.dataset.query||'';calStatus=jump.dataset.filter||'all';stockCategory='';render();return;}
   const setupButton=e.target.closest('[data-setup-category]');
   if(setupButton){setupCategory=setupButton.dataset.setupCategory;setupModel='';render();return;}
   const category=e.target.closest('[data-category]');
