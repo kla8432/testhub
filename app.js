@@ -58,8 +58,9 @@ async function deleteCalibration(button){
  catch(e){alert(e.message);button.disabled=false;}
 }
 function rowCategory(row) { return StockView.category(row); }
+function stockRows(){const catalog=new Map((db.countCatalog||[]).map(r=>[r.stockId,r]));return db.stock.map(r=>({...r,pn:catalog.get(r.id)?.pn||r.pn||''}));}
 function list(q = searchQuery) {
-  if (page === 'stock') return StockView.table(StockView.filter(db.stock, stockCategory, q), currentUser?.role !== 'viewer', connected, currentUser?.role === 'admin');
+  if (page === 'stock') return StockView.table(StockView.filter(stockRows(), stockCategory, q), currentUser?.role !== 'viewer', connected, currentUser?.role === 'admin');
   const rows = db[page].filter(r => (page!=='setup'||((!setupCategory||(r.category||'คู่มือเซ็ตอัพ')===setupCategory)&&(!setupModel||r.model===setupModel))) && Object.values(r).some(v => String(v).toLowerCase().includes(q.toLowerCase())));
   if (page === 'cal') return CalView.overview(db.cal,q,calStatus); 
   if (page === 'downtime') return table(['ชื่อรุ่น','Order','วันที่ทำ','อาการ / สาเหตุ','วิธีการแก้'],rows.map(r=>[esc(r.model||r.machine||'—'),esc(r.order||'—'),esc(r.date||r.start?.slice(0,10)||'—'),esc(r.cause),esc(r.action)]));
@@ -71,7 +72,7 @@ let stockCategory = '', searchQuery = '', calStatus='all', setupCategory='', set
 function stockCategories() { return StockView.categories(db.stock); }
 function updateResults() {
   $('results').innerHTML = list(searchQuery);
-  if ($('result-count')) $('result-count').textContent = `พบ ${StockView.filter(db.stock, stockCategory, searchQuery).length} รายการ · ${stockCategory || 'ทุกหมวด'}`;
+  if ($('result-count')) $('result-count').textContent = `พบ ${StockView.filter(stockRows(), stockCategory, searchQuery).length} รายการ · ${stockCategory || 'ทุกหมวด'}`;
 }
 let renderDay='';
 function render() {
@@ -97,7 +98,7 @@ function render() {
   const stock = page === 'stock';
   $('content').innerHTML = `${stock?stockTabs():''} ${page==='cal'?CalView.summary(db.cal):''}<div class="panel ${stock?'stock-panel':''}">
     ${page==='setup'?`<div class="category-bar"><button class="secondary" data-setup-category="" aria-pressed="${!setupCategory}">ทุกหมวด</button>${[...new Set(db.setup.map(r=>r.category||'คู่มือเซ็ตอัพ'))].map(c=>`<button class="secondary" data-setup-category="${esc(c)}" aria-pressed="${setupCategory===c}">${esc(c)}</button>`).join('')}</div><label>เลือกรุ่น<select id="setup-model"><option value="">ทุกรุ่น</option>${[...new Set(db.setup.filter(r=>!setupCategory||(r.category||'คู่มือเซ็ตอัพ')===setupCategory).map(r=>r.model))].map(m=>`<option ${setupModel===m?'selected':''} value="${esc(m)}">${esc(m)}</option>`).join('')}</select></label>`:''}${stock ? StockView.categoryBar(db.stock, stockCategory) : ''}${page==='cal'?`<h2>สถานะล่าสุดของแต่ละเครื่อง</h2><label>กรองสถานะ<select id="cal-status">${[['all','ทุกสถานะ'],['fail','ไม่ผ่าน'],['overdue','เกินกำหนด'],['due','ครบกำหนดวันนี้'],['soon','ใกล้ครบกำหนด'],['ok','ปกติ']].map(([v,t])=>`<option value="${v}" ${calStatus===v?'selected':''}>${t}</option>`).join('')}</select></label>`:''}
-    <div class="toolbar"><input id="search" aria-label="ค้นหารายการ" placeholder="${stock?'ค้นหา MPN, Part name, รายละเอียด หรือผู้ผลิต…':'ค้นหารหัสเครื่อง รุ่น หรือรายการ…'}" value="${esc(searchQuery)}">${stock?'<span id="result-count" class="muted" role="status"></span>':''}</div>
+    <div class="toolbar"><input id="search" aria-label="ค้นหารายการ" placeholder="${stock?'ค้นหา P/N, MPN, Part name, รายละเอียด หรือผู้ผลิต…':'ค้นหารหัสเครื่อง รุ่น หรือรายการ…'}" value="${esc(searchQuery)}">${stock?'<span id="result-count" class="muted" role="status"></span>':''}</div>
     <div id="results"></div></div>
     ${stock ? `<details class="panel movement-panel"><summary>ประวัติรับเข้า / เบิกออก (${db.moves.length} รายการ)</summary>${table(['วันเวลา','MPN','อะไหล่','จำนวนเปลี่ยนแปลง','ผู้ดำเนินการ','หมายเหตุ'], [...db.moves].reverse().map(r=>[esc(new Date(r.created).toLocaleString('th-TH')),esc(r.code),esc(r.name),r.delta>0?'+'+r.delta:r.delta,esc(r.tech),esc(r.note)]))}</details>` : ''}`;
   updateResults();

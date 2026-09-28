@@ -9,7 +9,7 @@
     const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
     return rows.filter(row => {
       if (selected && category(row) !== selected) return false;
-      const searchable = [category(row), row.code, row.name, row.description, row.manufacturer, row.price, row.cycleLife, row.threshold, row.qty].join(' ').toLocaleLowerCase();
+      const searchable = [category(row), row.pn, row.code, row.name, row.description, row.manufacturer, row.price, row.cycleLife, row.threshold, row.qty].join(' ').toLocaleLowerCase();
       return words.every(word => searchable.includes(word));
     });
   }
@@ -25,9 +25,10 @@
   }
   function table(rows, canWrite, online, canEdit = false) {
     if (!rows.length) return '<div class="empty">ไม่พบรายการในหมวดหรือคำค้นนี้</div>';
-    const headings = ['หมวด', 'MPN', 'Part name', 'รายละเอียด', 'ผู้ผลิต', 'ราคา (บาท)', 'รอบเปลี่ยน', 'Safety stock', 'คงเหลือ', 'รูป'];
+    const headings = ['หมวด', 'P/N', 'MPN', 'Part name', 'รายละเอียด', 'ผู้ผลิต', 'ราคา (บาท)', 'รอบเปลี่ยน', 'Safety stock', 'คงเหลือ', 'รูป'];
     return `<div class="stock-table-scroll" role="region" aria-label="รายการสต็อก" tabindex="0"><table class="stock-table"><thead><tr>${headings.map(h => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>
       <td>${escape(category(row))}</td>
+      <td class="mpn"><strong>${text(row.pn)}</strong></td>
       <td class="mpn">${text(row.code)}</td>
       <td><strong>${text(row.name)}</strong>${canWrite ? `<button type="button" class="secondary stock-move" data-move="${escape(row.id)}" ${online ? '' : 'disabled'}>รับเข้า / เบิกออก</button>` : ''}${canEdit ? `<button type="button" class="secondary stock-move" data-edit="${escape(row.id)}" ${online ? '' : 'disabled'}>แก้ไขรายการ</button>` : ''}</td>
       <td class="stock-description">${text(row.description)}</td>
