@@ -23,7 +23,30 @@ const table=(heads,rows)=>rows.length?`<table><thead><tr>${heads.map(h=>`<th>${h
 function toast(){ $('toast').textContent='บันทึกข้อมูลเรียบร้อยแล้ว';$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2500);}
 function hours(r){return (new Date(r.end)-new Date(r.start))/3600000;}
 function latest(){return CalView.latest(db.cal);}
-function dashboard(){const now=new Date(),month=new Date(now.getFullYear(),now.getMonth(),1),next=new Date(now.getFullYear(),now.getMonth()+1,1);const overlap=(r,s,e)=>{const d=new Date((r.date||r.start?.slice(0,10)||'')+'T00:00:00+07:00');return d>=s&&d<e?1:0;};const total=db.downtime.reduce((s,r)=>s+overlap(r,month,next),0);const low=db.stock.filter(r=>r.qty<=r.threshold),last=latest();const counts=[['เครื่องที่มีประวัติคาลิเบรต',last.length,'นับตามรหัสเครื่อง'],['ผลคาลิเบรตล่าสุด',`${last.filter(r=>r.result==='Pass').length} / ${last.filter(r=>r.result==='Fail').length}`,'ผ่าน / ไม่ผ่าน'],['Downtime เดือนนี้',total,'รายการที่บันทึกในเดือนนี้'],['อะไหล่ถึงจุดแจ้งเตือน',low.length,'รายการที่ต้องตรวจสอบ']];let bars=[];for(let i=5;i>=0;i--){const s=new Date(now.getFullYear(),now.getMonth()-i,1),e=new Date(now.getFullYear(),now.getMonth()-i+1,1);bars.push({label:s.toLocaleDateString('th-TH',{month:'short'}),value:db.downtime.reduce((n,r)=>n+overlap(r,s,e),0)});}const max=Math.max(1,...bars.map(r=>r.value));return `${CalView.summary(db.cal)}<div class="cards">${counts.map(r=>`<div class="card"><span class="muted">${r[0]}</span><div class="value">${r[1]}</div><small>${r[2]}</small></div>`).join('')}</div><div class="grid"><div class="panel"><h2>Downtime ย้อนหลัง 6 เดือน</h2><p class="muted">จำนวนรายการที่ดำเนินการ</p>${bars.map(r=>`<div class="bar-row"><span>${r.label}</span><div class="bar"><span style="width:${r.value/max*100}%"></span></div><span>${r.value} รายการ</span></div>`).join('')}</div><div class="panel"><h2>อะไหล่ที่ต้องเติม</h2><p class="muted">จำนวนคงเหลือน้อยกว่าหรือเท่ากับจุดแจ้งเตือน</p>${low.length?low.map(r=>`<div class="row"><span>${esc(r.name)}<br><small class="muted">${esc(r.code)}</small></span>${badge(`เหลือ ${r.qty}`,true)}</div>`).join(''):'<div class="empty">ไม่มีรายการที่ต้องเติม</div>'}</div></div><div class="panel"><h2>สถานะคาลิเบรตล่าสุดของแต่ละเครื่อง</h2>${CalView.overview(db.cal)}</div>`;}
+function dashboard(){
+ const today=CalView.today(),month=today.slice(0,7),last=latest().map(r=>({...r,pm:CalView.status(r)}));
+ const count=key=>last.filter(r=>r.pm.key===key).length,urgent=count('fail')+count('overdue')+count('due');
+ const low=db.stock.filter(r=>r.qty<=r.threshold).sort((a,b)=>(a.qty>0)-(b.qty>0)||a.qty-b.qty);
+ const date=r=>r.date||r.start?.slice(0,10)||'';
+ const total=db.downtime.filter(r=>date(r).startsWith(month)).length;
+ const months=Array.from({length:6},(_,i)=>{const d=new Date(today.slice(0,7)+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-5+i);const key=d.toISOString().slice(0,7);return {label:d.toLocaleDateString('th-TH',{month:'short',timeZone:'UTC'}),value:db.downtime.filter(r=>date(r).startsWith(key)).length};});
+ const max=Math.max(1,...months.map(r=>r.value)),priority={fail:0,overdue:1,due:2,soon:3,ok:4};
+ last.sort((a,b)=>priority[a.pm.key]-priority[b.pm.key]||a.pm.days-b.pm.days);
+ const labels={fail:'ไม่ผ่าน',overdue:'เกินกำหนด',due:'ครบวันนี้',soon:'ใกล้ครบกำหนด',ok:'ปกติ'};
+ return `<div class="overview-board"><div class="board-title"><div><span class="board-kicker">TEST ENGINEERING</span><h1>ภาพรวมเครื่องเทส</h1></div><div class="board-tools"><span>${new Date(today+'T00:00:00Z').toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})}</span><button class="secondary" data-fullscreen>⛶ เต็มจอ</button></div></div>
+ <div class="board-metrics">
+ <button class="board-metric metric-blue" data-go="cal"><span>เครื่องที่ติดตาม</span><strong>${last.length}<small>เครื่อง</small></strong><em>ผ่านล่าสุด ${last.filter(r=>r.result==='Pass').length} เครื่อง</em></button>
+ <button class="board-metric metric-red" data-go="cal"><span>ต้องดำเนินการ</span><strong>${urgent}<small>เครื่อง</small></strong><em>ไม่ผ่าน ${count('fail')} · เกินกำหนด ${count('overdue')} · ครบวันนี้ ${count('due')}</em></button>
+ <button class="board-metric metric-amber" data-go="cal" data-filter="soon"><span>PM ภายใน 7 วัน</span><strong>${count('soon')}<small>เครื่อง</small></strong><em>เตรียมสอบเทียบก่อนครบกำหนด</em></button>
+ <button class="board-metric" data-go="downtime"><span>Downtime เดือนนี้</span><strong>${total}<small>รายการ</small></strong><em>ดูอาการและวิธีการแก้ →</em></button>
+ </div><div class="board-columns"><section class="board-panel machine-panel"><div class="board-panel-head"><div><h2>สถานะเครื่องและรอบ PM</h2><p>รอบ 30 วัน · เรียงเครื่องที่ต้องดำเนินการก่อน</p></div><button data-go="cal" class="board-link">ดูทั้งหมด →</button></div>
+ <div class="machine-legend"><span class="dot-ok">ปกติ ${count('ok')}</span><span class="dot-soon">ใกล้ครบ ${count('soon')}</span><span class="dot-fail">ต้องดำเนินการ ${urgent}</span></div>
+ <div class="machine-grid">${last.length?last.map(r=>`<button class="machine-tile pm-${r.pm.key}" data-go="cal" data-machine="${esc(r.machine)}" title="${esc(r.model)} · แคลล่าสุด ${esc(r.date)} · ครบกำหนด ${r.pm.due}"><span class="machine-id">${esc(r.machine)}</span><span class="machine-model">${esc(r.model)}</span><span class="machine-state">${labels[r.pm.key]}</span><small>${r.pm.days<0?'เกิน '+-r.pm.days+' วัน':r.pm.days===0?'ครบกำหนดวันนี้':'อีก '+r.pm.days+' วัน'}</small></button>`).join(''):'<div class="board-empty">ยังไม่มีประวัติแคล<br>เพิ่มผลแคลเพื่อเริ่มติดตามเครื่อง</div>'}</div>
+ <div class="board-footnote">กดที่เครื่องเพื่อดูประวัติและกำหนด PM · แสดงเฉพาะเครื่องที่มีประวัติแคล</div></section>
+ <div class="board-side"><section class="board-panel stock-summary"><div class="board-panel-head"><div><h2>สต็อกที่ต้องเติม <span class="board-count">${low.length}</span></h2><p>คงเหลือถึงหรือต่ำกว่า Safety stock</p></div><button class="board-link" data-go="stock">ดูทั้งหมด →</button></div>
+ <div class="board-stock-list">${low.length?low.slice(0,5).map(r=>`<button data-go="stock" data-query="${esc(r.code)}" class="board-stock-row"><span><strong>${esc(r.name)}</strong><small>${esc(r.code)}</small></span><span class="stock-amount ${r.qty===0?'stock-zero':''}">${r.qty}<small>ขั้นต่ำ ${r.threshold}</small></span></button>`).join(''):'<div class="board-empty">สต็อกทุกรายการสูงกว่าจุดแจ้งเตือน</div>'}</div>${low.length>5?`<p class="board-footnote">แสดง 5 จาก ${low.length} รายการ · เรียงของหมดก่อน</p>`:''}</section>
+ <section class="board-panel trend-panel"><div class="board-panel-head"><div><h2>Downtime ย้อนหลัง 6 เดือน</h2><p>จำนวนรายการที่บันทึก</p></div><button class="board-link" data-go="downtime">ดูรายละเอียด →</button></div><div class="board-chart">${months.map(r=>`<div class="chart-column"><strong>${r.value}</strong><div class="chart-track"><span style="height:${r.value/max*100}%"></span></div><small>${r.label}</small></div>`).join('')}</div></section></div></div></div>`;
+}
 function calTable(rows){const admin=currentUser?.role==='admin';return table(['รหัสเครื่อง','รุ่น / ชื่อเครื่อง','วันที่คาลิเบรต','ผล','ช่างผู้ดำเนินการ','หมายเหตุ',...(admin?['จัดการ']:[])],rows.map(r=>[esc(r.machine),esc(r.model),esc(r.date),badge(r.result,r.result==='Fail'),esc(r.tech),esc(r.note),...(admin?[`<button class="secondary" data-delete-cal="${esc(r.id)}" ${!connected?'disabled':''}>ลบประวัติ</button>`]:[])]));}
 async function deleteCalibration(button){
  const r=db.cal.find(r=>r.id===button.dataset.deleteCal);
@@ -49,6 +72,7 @@ function updateResults() {
 }
 let renderDay='';
 function render() {
+  document.body.classList.toggle('dashboard-page',page==='dashboard');
   renderDay=CalView.today();
   if (!db) { $('content').textContent='ไม่สามารถโหลดข้อมูลได้'; return; }
   const focused = document.activeElement?.id === 'search';
@@ -86,6 +110,10 @@ $('nav').onclick = e => {
 $('add').onclick=()=>openForm();
 $('close').onclick=()=>$('dialog').close();
 $('content').onclick=e=>{
+  const full=e.target.closest('[data-fullscreen]');
+  if(full){if(document.fullscreenElement)document.exitFullscreen?.();else document.documentElement.requestFullscreen?.().catch(()=>{});return;}
+  const jump=e.target.closest('[data-go]');
+  if(jump){page=jump.dataset.go;searchQuery=jump.dataset.machine||jump.dataset.query||'';calStatus=jump.dataset.filter||'all';stockCategory='';render();return;}
   const setupButton=e.target.closest('[data-setup-category]');
   if(setupButton){setupCategory=setupButton.dataset.setupCategory;setupModel='';render();return;}
   const category=e.target.closest('[data-category]');
