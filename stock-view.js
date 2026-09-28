@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const number = value => Number(value).toLocaleString('th-TH', { maximumFractionDigits: 3 });
+  const number = value => value == null ? '—' : Number(value).toLocaleString('th-TH', { maximumFractionDigits: 3 });
   const text = value => value == null || value === '' ? '—' : escape(value);
   const category = row => /^hotswap/i.test((row.name || '').trim()) ? 'Hotswap' : (row.category || '').trim() || 'ไม่ระบุ';
   const categories = rows => [...new Set(rows.map(category))].sort((a, b) => a.localeCompare(b, 'th'));
@@ -35,7 +35,7 @@
       <td class="numeric">${row.price == null || row.price === '' ? '—' : Number(row.price).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}</td>
       <td>${cycle(row)}</td>
       <td class="numeric">${number(row.threshold)}</td>
-      <td class="numeric"><strong>${number(row.qty)}</strong>${row.qty <= row.threshold ? '<small class="stock-low">ถึงจุดแจ้งเตือน</small>' : ''}</td>
+      <td class="numeric"><strong>${number(row.qty)}</strong>${Number.isFinite(row.threshold) && row.qty <= row.threshold ? '<small class="stock-low">ถึงจุดแจ้งเตือน</small>' : ''}</td>
       <td><span class="photo-placeholder">ยังไม่มีรูป</span></td>
     </tr>`).join('')}</tbody></table></div>`;
   }

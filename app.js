@@ -1,10 +1,11 @@
 'use strict';
 const $=id=>document.getElementById(id);
-const pages={dashboard:['ภาพรวมระบบ','ติดตามสถานะเครื่องเทสและงานซ่อมบำรุงในที่เดียว','▦'],cal:['บันทึกคาลิเบรต','บันทึกผลการสอบเทียบ และตรวจสอบประวัติของแต่ละเครื่อง','✓'],setup:['คู่มือเซ็ตอัพ','รวบรวมวิธีต่อสายและขั้นตอนการตั้งค่าแยกตามรุ่น','▤'],downtime:['บันทึก Downtime','บันทึกชื่อรุ่น Order วันที่ทำ อาการและวิธีการแก้','◷'],stock:['จัดการสต็อก','ติดตามอะไหล่คงเหลือและประวัติการเบิกจ่าย','▧']};
-let db={cal:[],setup:[],downtime:[],stock:[],moves:[],revision:-1},page='dashboard',currentUser=null,connected=false;
+const pages={dashboard:['ภาพรวมระบบ','ติดตามสถานะเครื่องเทสและงานซ่อมบำรุงในที่เดียว','▦'],cal:['บันทึกคาลิเบรต','บันทึกผลการสอบเทียบ และตรวจสอบประวัติของแต่ละเครื่อง','✓'],setup:['คู่มือเซ็ตอัพ','รวบรวมวิธีต่อสายและขั้นตอนการตั้งค่าแยกตามรุ่น','▤'],downtime:['บันทึก Downtime','บันทึกชื่อรุ่น Order วันที่ทำ อาการและวิธีการแก้','◷'],count:['นับสต็อกรายสัปดาห์','กรอกจำนวนจากการตรวจนับ แล้วบันทึกเพื่ออัปเดตคงเหลือ','▣'],stock:['จัดการสต็อก','ติดตามอะไหล่คงเหลือและประวัติการเบิกจ่าย','▧']};
+let db={cal:[],setup:[],downtime:[],stock:[],moves:[],revision:-1},page=new URLSearchParams(location.search).get('page')==='count'?'count':'dashboard',currentUser=null,connected=false;
 async function api(url,data){return TestHubCloud.request(url,data);}
 function connection(ok) {
   connected = ok;
+  WeeklyCount.refresh(db,ok);
   document.querySelector('.local').textContent = ok ? '● เชื่อมต่อข้อมูลกลาง' : '● ขาดการเชื่อมต่อ';
   $('add').disabled = !ok;
   document.querySelectorAll('[data-move]').forEach(button => button.disabled = !ok);
@@ -26,7 +27,7 @@ function latest(){return CalView.latest(db.cal);}
 function dashboard(){
  const today=CalView.today(),month=today.slice(0,7),last=latest().map(r=>({...r,pm:CalView.status(r)}));
  const count=key=>last.filter(r=>r.pm.key===key).length,urgent=count('fail')+count('overdue')+count('due');
- const low=db.stock.filter(r=>r.qty<=r.threshold).sort((a,b)=>(a.qty>0)-(b.qty>0)||a.qty-b.qty);
+ const low=db.stock.filter(r=>Number.isFinite(r.threshold)&&r.qty<=r.threshold).sort((a,b)=>(a.qty>0)-(b.qty>0)||a.qty-b.qty);
  const date=r=>r.date||r.start?.slice(0,10)||'';
  const total=db.downtime.filter(r=>date(r).startsWith(month)).length;
  const months=Array.from({length:6},(_,i)=>{const d=new Date(today.slice(0,7)+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-5+i);const key=d.toISOString().slice(0,7);return {label:d.toLocaleDateString('th-TH',{month:'short',timeZone:'UTC'}),value:db.downtime.filter(r=>date(r).startsWith(key)).length};});
@@ -82,8 +83,14 @@ function render() {
   $('nav').innerHTML = Object.entries(pages).map(([k,v])=>`<button data-page="${k}" class="${page===k?'active':''}">${v[2]}　${v[0]}</button>`).join('');
   $('title').textContent = $('breadcrumb').textContent = pages[page][0];
   $('subtitle').textContent = pages[page][1];
-  $('add').hidden = (page === 'dashboard' || page === 'setup') || !currentUser || currentUser.role === 'viewer' || (page === 'stock' && currentUser.role !== 'admin');
+  $('add').hidden = (page === 'dashboard' || page === 'setup' || page === 'count') || !currentUser || currentUser.role === 'viewer' || (page === 'stock' && currentUser.role !== 'admin');
   $('add').disabled = !connected;
+  if(page==='count'){
+    if(!currentUser){$('content').textContent='กำลังโหลดข้อมูล';return;}
+    $('content').innerHTML='<div id="weekly-count-root"></div>';
+    WeeklyCount.mount($('weekly-count-root'),{db,user:currentUser,connected,api,onState:next=>{db=next;}});return;
+  }
+  WeeklyCount.unmount();
   if (page === 'dashboard') { $('content').innerHTML = dashboard(); return; }
   const stock = page === 'stock';
   $('content').innerHTML = ` ${page==='cal'?CalView.summary(db.cal):''}<div class="panel ${stock?'stock-panel':''}">
