@@ -58,7 +58,23 @@ async function deleteCalibration(button){
  catch(e){alert(e.message);button.disabled=false;}
 }
 function rowCategory(row) { return StockView.category(row); }
-function stockRows(){const catalog=new Map((db.countCatalog||[]).map(r=>[r.stockId,r]));return db.stock.map(r=>({...r,pn:catalog.get(r.id)?.pn||r.pn||''}));}
+function stockRows(){const catalog=new Map((db.countCatalog||[]).map(r=>[r.stockId,r]));return db.stock.map(r=>{const pn=catalog.get(r.id)?.pn||r.pn||'';return {...r,pn,photoCount:db.stockPhotos?.[pn]?.length||0};});}
+async function openStockPhotos(pn){
+ const item=(db.countCatalog||[]).find(r=>r.pn===pn);
+ const row=stockRows().find(r=>r.pn===pn)||(item?{name:item.product,code:item.code}:null);if(!row)return;
+ let gallery=$('stock-photo-dialog');
+ if(!gallery){gallery=document.createElement('dialog');gallery.id='stock-photo-dialog';gallery.className='stock-photo-dialog';gallery.setAttribute('aria-labelledby','stock-photo-title');document.body.append(gallery);}
+ gallery.innerHTML=`<div class="dialog-head"><div><h2 id="stock-photo-title">${esc(row.name)}</h2><p>P/N <strong>${esc(pn)}</strong> · MPN ${esc(row.code)}</p></div><button type="button" class="secondary" aria-label="ปิดรูป">✕</button></div><div class="stock-photo-gallery" role="status">กำลังโหลดรูป…</div>`;
+ gallery.querySelector('button').onclick=()=>gallery.close();gallery.showModal();
+ const target=gallery.querySelector('.stock-photo-gallery');
+ try{
+  const result=await api('/api/stock-photos?pn='+encodeURIComponent(pn));
+  if(!target.isConnected)return;
+  target.removeAttribute('role');
+  target.innerHTML=result.photos.map((photo,i)=>`<figure><a href="${esc(photo.url)}" target="_blank" rel="noopener noreferrer"><img src="${esc(photo.url)}" alt="รูปอะไหล่ P/N ${esc(pn)} มุมที่ ${i+1}" loading="lazy"></a><figcaption>รูป ${i+1} / ${result.photos.length} · กดรูปเพื่อดูขนาดเต็ม</figcaption></figure>`).join('');
+  target.querySelectorAll('img').forEach(img=>img.onerror=()=>{img.replaceWith(document.createTextNode('โหลดรูปไม่สำเร็จ กรุณาปิดแล้วเปิดรูปอีกครั้ง'));});
+ }catch(err){if(target.isConnected)target.textContent=err.message;}
+}
 function list(q = searchQuery) {
   if (page === 'stock') return StockView.table(StockView.filter(stockRows(), stockCategory, q), currentUser?.role !== 'viewer', connected, currentUser?.role === 'admin');
   const rows = db[page].filter(r => (page!=='setup'||((!setupCategory||(r.category||'คู่มือเซ็ตอัพ')===setupCategory)&&(!setupModel||r.model===setupModel))) && Object.values(r).some(v => String(v).toLowerCase().includes(q.toLowerCase())));
@@ -120,6 +136,8 @@ $('nav').onclick = e => {
 $('add').onclick=()=>openForm();
 $('close').onclick=()=>$('dialog').close();
 $('content').onclick=e=>{
+  const photo=e.target.closest('[data-stock-photo]');
+  if(photo){openStockPhotos(photo.dataset.stockPhoto);return;}
   const stockTab=e.target.closest('[data-stock-view]');
   if(stockTab){stockMode=stockTab.dataset.stockView;render();return;}
   const full=e.target.closest('[data-fullscreen]');

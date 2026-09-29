@@ -37,7 +37,7 @@
       <td>${cycle(row)}</td>
       <td class="numeric">${number(row.threshold)}</td>
       <td class="numeric"><strong>${number(row.qty)}</strong>${Number.isFinite(row.threshold) && row.qty <= row.threshold ? '<small class="stock-low">ถึงจุดแจ้งเตือน</small>' : ''}</td>
-      <td><span class="photo-placeholder">ยังไม่มีรูป</span></td>
+      <td>${row.photoCount ? `<button type="button" class="secondary stock-photo-button" data-stock-photo="${escape(row.pn)}" aria-label="ดูรูป P/N ${escape(row.pn)}">ดูรูป (${number(row.photoCount)})</button>` : '<span class="photo-placeholder">ยังไม่มีรูป</span>'}</td>
     </tr>`).join('')}</tbody></table></div>`;
   }
   function fields(rows, selected = '', record = {}) {
@@ -51,7 +51,7 @@
       <div class="form-wide">${input('cycleLife', 'รอบเปลี่ยน')}<p class="field-hint">ใส่หน่วยด้วย เช่น 50000 tests หรือ Monthly ตามข้อมูลของอะไหล่</p></div>
       ${input('threshold', 'Safety stock', 'number', true)}${input('qty', record.id ? 'คงเหลือ' : 'คงเหลือเริ่มต้น', 'number', true)}
       ${record.id ? '<div class="form-wide">'+input('adjustmentNote','เหตุผลปรับยอดคงเหลือ')+'<p class="field-hint">กรอกเหตุผลเมื่อแก้จำนวนคงเหลือ ระบบจะบันทึกส่วนต่างในประวัติสต็อก</p></div>' : ''}
-      <div class="form-wide"><span>รูป</span><p class="photo-placeholder">เว้นไว้สำหรับเพิ่มรูปภายหลัง</p><input type="hidden" name="photo" value=""></div>
+      <div class="form-wide"><span>รูป</span><p class="photo-placeholder">ดูรูปประกอบได้จากรายการ Stock</p><input type="hidden" name="photo" value=""></div>
     </div>`;
   }
   const api = { category, categories, filter, categoryBar, table, fields };
