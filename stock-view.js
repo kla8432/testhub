@@ -44,7 +44,7 @@
       <td><strong>${text(row.model)}</strong></td>
       <td class="mpn"><strong>${text(row.pn)}</strong></td>
       <td class="mpn">${text(row.code)}</td>
-      <td><strong>${text(row.name)}</strong>${canWrite ? `<button type="button" class="secondary stock-move" data-move="${escape(row.id)}" ${online ? '' : 'disabled'}>เบิกจากสโตร์ / ตรวจนับ</button>` : ''}${canEdit ? `<button type="button" class="secondary stock-move" data-edit="${escape(row.id)}" ${online ? '' : 'disabled'}>แก้ไขรายการ</button>` : ''}</td>
+      <td><strong>${text(row.name)}</strong>${canWrite ? `<button type="button" class="secondary stock-move" data-move="${escape(row.id)}" ${online ? '' : 'disabled'}>${canEdit?'เบิกจากสโตร์ / ตรวจนับ':'ตรวจนับในห้อง'}</button>` : ''}${canEdit ? `<button type="button" class="secondary stock-move" data-edit="${escape(row.id)}" ${online ? '' : 'disabled'}>แก้ไขรายการ</button>` : ''}</td>
       <td class="stock-description">${text(row.description)}</td>
       <td>${text(row.manufacturer)}</td>
       <td class="numeric">${row.price == null || row.price === '' ? '—' : Number(row.price).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}</td>
@@ -67,12 +67,28 @@
       <label class="form-wide">รายละเอียด<textarea name="description">${escape(record.description)}</textarea></label>
       ${input('manufacturer', 'ผู้ผลิต')}${input('price', 'ราคา (บาท)', 'number')}
       <div class="form-wide">${input('cycleLife', 'รอบเปลี่ยน')}<p class="field-hint">ใส่หน่วยด้วย เช่น 50000 tests หรือ Monthly ตามข้อมูลของอะไหล่</p></div>
-      ${record.reorderPlan?`<div>จุดสั่งซื้อ 6 เดือน: <strong>${reorder(record).point===null?'ข้อมูลไม่ครบ':number(reorder(record).point)}</strong><input type="hidden" name="threshold" value="${escape(record.threshold)}"></div>${input('outstandingPo','PO/WIP รอรับ','number',true)}`:input('threshold', 'Safety stock สโตร์', 'number', true)}${input('qty', record.id ? 'คงเหลือสโตร์' : 'ยอดเริ่มต้นสโตร์', 'number', true)}
+      ${record.reorderPlan?`${demandFields(record,input)}<div>จุดสั่งซื้อ 6 เดือน: <strong data-demand-preview aria-live="polite">${reorder(record).point===null?'ข้อมูลไม่ครบ':number(reorder(record).point)}</strong><input type="hidden" name="threshold" value="${escape(record.threshold??0)}"></div>${input('outstandingPo','PO/WIP รอรับ','number',true)}`:input('threshold', 'Safety stock สโตร์', 'number', true)}${input('qty', record.id ? 'คงเหลือสโตร์' : 'ยอดเริ่มต้นสโตร์', 'number', true)}
       ${record.id ? '<div class="form-wide">'+input('adjustmentNote','เหตุผลปรับยอดสโตร์')+'<p class="field-hint">กรอกเหตุผลเมื่อแก้จำนวนคงเหลือสโตร์ ระบบจะบันทึกส่วนต่างในประวัติสต็อก</p></div>' : ''}
       <div class="form-wide"><span>รูป</span><p class="photo-placeholder">ดูรูปประกอบได้จากรายการ Stock</p><input type="hidden" name="photo" value=""></div>
     </div>`;
   }
-  const api = { category, categories, filter, categoryBar, table, fields, reorder, summary };
+  function demandFields(record,input){
+    const plan=record.reorderPlan;
+    if(plan.special)return (plan.breakdown||[]).map((line,i)=>input('demand'+i,'Demand ต่อปี · '+escape(line.model),'number',true,line.annualDemand??'')).join('');
+    return input('annualDemand','Demand ต่อปี (จำนวนผลิตภัณฑ์)','number',false,plan.annualDemand??'')+input('serviceLife','อายุใช้งาน (ครั้ง/ชิ้น)','number',false,plan.serviceLife??'')+input('stations','จำนวนจุดใช้งาน','number',false,plan.stations??'');
+  }
+  function demandPreview(record,data){
+    const plan=record.reorderPlan;
+    const read=(v,positive=false)=>v!==''&&v!=null&&Number.isFinite(+v)&&+v>=0&&+v<=1e9&&(!positive||+v>0)?+v:NaN;
+    const usage=plan?.special?(plan.breakdown||[]).reduce((sum,line,i)=>sum+read(data['demand'+i])*line.stations/line.serviceLife,0):read(data.annualDemand)*read(data.stations,true)/read(data.serviceLife,true)*1.1;
+    return Number.isFinite(usage)&&usage<=1e9?Math.ceil(Number((usage/2).toFixed(9))):null;
+  }
+  function bindDemandPreview(form,record){
+    const output=form.querySelector('[data-demand-preview]');if(!output)return;
+    const update=()=>{const point=demandPreview(record,Object.fromEntries(new FormData(form)));output.textContent=point===null?'กรอกข้อมูลให้ครบ':number(point)+' ชิ้น';};
+    for(const input of form.querySelectorAll('[name^="demand"],[name="annualDemand"],[name="serviceLife"],[name="stations"]'))input.addEventListener('input',update);
+  }
+  const api = { category, categories, filter, categoryBar, table, fields, reorder, summary, demandPreview, bindDemandPreview };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.StockView = api;
 })(typeof globalThis === 'undefined' ? this : globalThis);
