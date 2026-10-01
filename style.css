@@ -99,3 +99,5 @@ dialog::backdrop{background:#17255477}
 .stock-photo-gallery img{display:block;width:100%;height:340px;object-fit:contain;background:white;border-radius:8px}
 .stock-photo-gallery figcaption{font-size:13px;color:#53647c;padding-top:12px}
 @media(max-width:600px){.stock-photo-dialog{padding:16px}.stock-photo-gallery img{height:280px}}
+
+.stock-table{min-width:1800px}.stock-table th:nth-child(11){width:140px}.stock-table th:nth-child(12){width:100px}.inventory-balances{padding:14px;background:#eff6ff;border-radius:10px;line-height:1.8}
