@@ -13,10 +13,6 @@
     const shortfall=point!==null&&available!==null?Math.max(0,Math.ceil(point-available)):null;
     return {planned,point,po,available,shortfall,low:planned?shortfall>0:point!==null&&available!==null&&available<=point};
   }
-  function planDetails(row) {
-    const p=row.reorderPlan;if(!p)return '';
-    return `<details class="reorder-details"><summary>วิธีคำนวณ / ที่มา</summary><p>จุดสั่งซื้อ 6 เดือน = ปัดขึ้น (ยอดใช้ Hotswap ต่อปี ÷ 2)</p><p>ยอดใช้ต่อปี ${number(p.annualUsage)} ชิ้น · Demand ตามไฟล์ ${number(p.annualDemand)} · อายุใช้งาน ${number(p.serviceLife)} ครั้ง · จุดใช้งาน ${number(p.stations)}</p><p>${p.special?'รวมการใช้แยกรุ่นตาม Sheet2 ในไฟล์':'สูตรยอดใช้ต่อปี = Demand × จุดใช้งาน ÷ อายุใช้งาน × 1.10 ตามไฟล์'}</p>${p.missing?.length?`<p>ข้อมูลไม่ครบ: ${p.missing.map(escape).join(', ')}</p>`:''}<p>เปรียบเทียบกับยอดสโตร์ + PO/WIP ที่รอรับ โดยไม่รวมยอดนับในห้อง · PO ว่างในไฟล์คิดเป็น 0 ตามสูตรต้นฉบับ</p><p>${text(row.storeSource?.file)} · ${text(row.storeSource?.sheet)} แถว ${number(row.storeSource?.row)} · ยอดสโตร์ ณ ${text(row.storeSource?.date)}</p>${p.poNumber?`<p>PO ${text(p.poNumber)} · ${text(p.poDate)}</p>`:''}</details>`;
-  }
   function summary(rows) {
     const planned=rows.filter(r=>r.reorderPlan);if(!planned.length)return '';
     const pending=planned.filter(r=>reorder(r).low).length,missing=planned.filter(r=>reorder(r).point===null).length;
@@ -53,7 +49,7 @@
       <td>${text(row.manufacturer)}</td>
       <td class="numeric">${row.price == null || row.price === '' ? '—' : Number(row.price).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}</td>
       <td>${cycle(row)}</td>
-      <td class="numeric"><strong>${reorder(row).point===null?'ข้อมูลไม่ครบ':number(reorder(row).point)}</strong><small class="cell-note">${row.reorderPlan?'6 เดือน · ปัดขึ้นเป็นชิ้น':'Safety stock ที่กำหนดเอง'}</small>${planDetails(row)}</td>
+      <td class="numeric"><strong>${reorder(row).point===null?'ข้อมูลไม่ครบ':number(reorder(row).point)}</strong><small class="cell-note">${row.reorderPlan?'6 เดือน · ปัดขึ้นเป็นชิ้น':'Safety stock ที่กำหนดเอง'}</small></td>
       <td class="numeric"><strong>${number(row.qty)}</strong>${row.storeSource?`<small class="cell-note">ฐาน WK39: ${number(row.storeSource.qty)}<br>ณ ${escape(row.storeSource.date)}</small>`:''}</td>
       <td class="numeric">${row.reorderPlan?number(row.outstandingPo):'—'}</td>
       <td>${reorder(row).shortfall===null?'ข้อมูลไม่ครบ':reorder(row).low?`<strong class="stock-low">ควรสั่งเพิ่ม${row.reorderPlan?' '+number(reorder(row).shortfall)+' ชิ้น':''}</strong>`:row.reorderPlan&&row.qty<reorder(row).point?'รอรับ PO ครบจุดสั่งซื้อ':'เพียงพอ'}</td>
@@ -71,7 +67,7 @@
       <label class="form-wide">รายละเอียด<textarea name="description">${escape(record.description)}</textarea></label>
       ${input('manufacturer', 'ผู้ผลิต')}${input('price', 'ราคา (บาท)', 'number')}
       <div class="form-wide">${input('cycleLife', 'รอบเปลี่ยน')}<p class="field-hint">ใส่หน่วยด้วย เช่น 50000 tests หรือ Monthly ตามข้อมูลของอะไหล่</p></div>
-      ${record.reorderPlan?`<div>จุดสั่งซื้อ 6 เดือน: <strong>${reorder(record).point===null?'ข้อมูลไม่ครบ':number(reorder(record).point)}</strong><input type="hidden" name="threshold" value="${escape(record.threshold)}">${planDetails(record)}</div>${input('outstandingPo','PO/WIP รอรับ','number',true)}`:input('threshold', 'Safety stock สโตร์', 'number', true)}${input('qty', record.id ? 'คงเหลือสโตร์' : 'ยอดเริ่มต้นสโตร์', 'number', true)}
+      ${record.reorderPlan?`<div>จุดสั่งซื้อ 6 เดือน: <strong>${reorder(record).point===null?'ข้อมูลไม่ครบ':number(reorder(record).point)}</strong><input type="hidden" name="threshold" value="${escape(record.threshold)}"></div>${input('outstandingPo','PO/WIP รอรับ','number',true)}`:input('threshold', 'Safety stock สโตร์', 'number', true)}${input('qty', record.id ? 'คงเหลือสโตร์' : 'ยอดเริ่มต้นสโตร์', 'number', true)}
       ${record.id ? '<div class="form-wide">'+input('adjustmentNote','เหตุผลปรับยอดสโตร์')+'<p class="field-hint">กรอกเหตุผลเมื่อแก้จำนวนคงเหลือสโตร์ ระบบจะบันทึกส่วนต่างในประวัติสต็อก</p></div>' : ''}
       <div class="form-wide"><span>รูป</span><p class="photo-placeholder">ดูรูปประกอบได้จากรายการ Stock</p><input type="hidden" name="photo" value=""></div>
     </div>`;
@@ -80,3 +76,4 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.StockView = api;
 })(typeof globalThis === 'undefined' ? this : globalThis);
+
