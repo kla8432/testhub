@@ -109,3 +109,11 @@ dialog::backdrop{background:#17255477}
 .stock-table{min-width:2390px}
 .stock-table th:nth-child(1){width:100px}.stock-table th:nth-child(2){width:175px}.stock-table th:nth-child(3){width:100px}.stock-table th:nth-child(4){width:180px}.stock-table th:nth-child(5){width:205px}.stock-table th:nth-child(6){width:245px}.stock-table th:nth-child(7){width:115px}.stock-table th:nth-child(8){width:100px}.stock-table th:nth-child(9){width:120px}.stock-table th:nth-child(10){width:200px}.stock-table th:nth-child(11){width:140px}.stock-table th:nth-child(12){width:100px}.stock-table th:nth-child(13){width:150px}.stock-table th:nth-child(14){width:140px}.stock-table th:nth-child(15){width:100px}
 .reorder-overview{flex-basis:100%;font-size:13px}.reorder-overview>summary{cursor:pointer;font-weight:600}.reorder-overview-scroll{overflow:auto;margin-top:12px;background:#fff;border-radius:8px}.reorder-overview table{width:100%;min-width:700px;white-space:normal}.reorder-overview td,.reorder-overview th{padding:10px 12px}.reorder-overview th{background:#e1edff}
+
+/* Separate room replenishment alerts from store purchase planning. */
+.board-side{grid-template-rows:minmax(130px,1.3fr) minmax(100px,1fr) minmax(95px,.8fr)}
+.room-alert-panel{border-top:3px solid #e3a32b}
+.room-summary{border-left:4px solid #e3a32b;background:#fffbef}
+.room-summary summary{cursor:pointer;font-weight:600;color:#845200}
+.room-summary .board-link{white-space:normal;text-align:left}
+@media(max-width:900px),(max-height:580px){.board-side{grid-template-rows:auto auto 220px}.room-alert-panel .board-stock-list{max-height:250px;overflow:auto}}

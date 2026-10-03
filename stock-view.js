@@ -5,6 +5,22 @@
   const text = value => value == null || value === '' ? '—' : escape(value);
   const category = row => /^hotswap/i.test((row.name || '').trim()) ? 'Hotswap' : (row.category || '').trim() || 'ไม่ระบุ';
   const categories = rows => [...new Set(rows.map(category))].sort((a, b) => a.localeCompare(b, 'th'));
+  function roomAlerts(rows,catalog=[],policy={mode:'fixed',limit:10}) {
+    const byId=new Map(catalog.map(item=>[item.stockId,item]));
+    return rows.filter(row=>category(row).toLowerCase()==='hotswap').map(row=>{
+      const entry=byId.get(row.id),safety=entry?.safety;
+      const hasSafety=typeof safety==='number'&&Number.isFinite(safety)&&safety>=0;
+      const limit=policy.mode==='catalog'&&hasSafety?Math.ceil(safety):policy.limit;
+      const known=Number.isFinite(row.roomQty)&&row.roomQty>=0;
+      return {...row,pn:row.pn||entry?.pn||'',roomLimit:limit,roomLow:known&&row.roomQty<=limit,
+        supply:!Number.isFinite(row.qty)?'ยังไม่ทราบยอดสโตร์':row.qty>0?'เบิกจากสโตร์ได้':'สโตร์หมด · แจ้ง Engineer'};
+    }).filter(row=>row.roomLow).sort((a,b)=>(a.roomQty>0)-(b.roomQty>0)||a.roomQty-b.roomQty||String(a.code).localeCompare(String(b.code)));
+  }
+  function roomSummary(rows,catalog=[],policy) {
+    const alerts=roomAlerts(rows,catalog,policy);
+    const unknown=rows.filter(r=>category(r).toLowerCase()==='hotswap'&&!Number.isFinite(r.roomQty)).length;
+    return `<section class="reorder-summary room-summary" aria-label="แจ้งเตือน Hotswap ในห้อง"><strong>Hotswap ในห้องใกล้หมด · ${alerts.length} รายการ</strong><p>อิงยอดตรวจนับล่าสุด · ${policy?.mode==='catalog'?'ใช้ Safety stock จากรายการนับ ถ้าไม่มีใช้ '+policy.limit:'แจ้งเตือนเมื่อเหลือไม่เกิน '+(policy?.limit??10)} ชิ้น${unknown?' · ยังไม่มีผลนับ '+unknown+' รายการ':''}</p>${alerts.length?`<details><summary>ดูรายการที่ต้องเบิกจากสโตร์ (${alerts.length})</summary><div class="reorder-overview-scroll"><table><thead><tr>${['รุ่น / Part name','P/N','ในห้อง','จุดแจ้งเตือน','สโตร์','สถานะ','นับล่าสุด'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${alerts.map(r=>`<tr><td><button class="board-link" data-go="stock" data-query="${escape(r.code)}">${text(r.model||r.name)}</button></td><td>${text(r.pn)}</td><td><strong class="stock-low">${number(r.roomQty)}</strong></td><td>${number(r.roomLimit)}</td><td>${number(r.qty)}</td><td>${escape(r.supply)}</td><td>${text(r.lastRoomCountDate)}</td></tr>`).join('')}</tbody></table></div></details>`:'<p>ไม่มีรายการที่ถึงจุดแจ้งเตือนในยอดที่ตรวจนับแล้ว</p>'}</section>`;
+  }
   function reorder(row) {
     const planned=!!row.reorderPlan, annual=row.reorderPlan?.annualUsage;
     const point=planned?(Number.isFinite(annual)&&annual>=0?Math.ceil(Number((annual/2).toFixed(9))):null):(Number.isFinite(row.threshold)?row.threshold:null);
@@ -88,7 +104,7 @@
     const update=()=>{const point=demandPreview(record,Object.fromEntries(new FormData(form)));output.textContent=point===null?'กรอกข้อมูลให้ครบ':number(point)+' ชิ้น';};
     for(const input of form.querySelectorAll('[name^="demand"],[name="annualDemand"],[name="serviceLife"],[name="stations"]'))input.addEventListener('input',update);
   }
-  const api = { category, categories, filter, categoryBar, table, fields, reorder, summary, demandPreview, bindDemandPreview };
+  const api = { category, categories, filter, categoryBar, table, fields, reorder, summary, demandPreview, bindDemandPreview, roomAlerts, roomSummary };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.StockView = api;
 })(typeof globalThis === 'undefined' ? this : globalThis);
