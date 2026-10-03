@@ -108,8 +108,8 @@ function render() {
   $('add').disabled = !connected;
   if(page==='stock'&&stockMode==='count'){
     if(!currentUser){$('content').textContent='กำลังโหลดข้อมูล';return;}
-    $('content').innerHTML=stockTabs()+'<div id="module-stock-alerts">'+StockView.roomSummary(stockRows(),db.countCatalog||[],roomAlertPolicy)+StockView.summary(stockRows())+'</div><div id="weekly-count-root"></div>';
-    WeeklyCount.mount($('weekly-count-root'),{db,user:currentUser,connected,api,onState:next=>{db=next;$('module-stock-alerts').innerHTML=StockView.roomSummary(stockRows(),db.countCatalog||[],roomAlertPolicy)+StockView.summary(stockRows());}});return;
+    $('content').innerHTML=stockTabs()+'<div id="weekly-count-root"></div>';
+    WeeklyCount.mount($('weekly-count-root'),{db,user:currentUser,connected,api,onState:next=>{db=next;}});return;
   }
   WeeklyCount.unmount();
   if (page === 'dashboard') { $('content').innerHTML = dashboard(); return; }
