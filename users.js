@@ -1,7 +1,7 @@
 'use strict';
 document.getElementById('user-form').hidden=true;
 const list=document.getElementById('user-list'),message=document.createElement('p');message.setAttribute('role','status');list.before(message);
-const hint=document.createElement('p');hint.textContent='ตรวจสอบผู้สมัครว่าเป็นสมาชิกทีมก่อนอนุมัติ · Engineer แก้ไขสโตร์และ Demand ได้ · ช่างบันทึกงานและตรวจนับในห้องได้ · ผู้ดูดูข้อมูลได้อย่างเดียว';list.before(hint);
+const hint=document.createElement('p');hint.textContent='ตรวจสอบผู้สมัครว่าเป็นสมาชิกทีมก่อนอนุมัติ · Engineer แก้ไขสโตร์และ Demand ได้ · ช่างบันทึกงานและตรวจนับห้องเก็บของได้ · ผู้ดูดูข้อมูลได้อย่างเดียว';list.before(hint);
 const refresh=document.createElement('button');refresh.textContent='รีเฟรชรายชื่อ';refresh.className='secondary';list.before(refresh);refresh.onclick=loadUsers;
 async function loadUsers(){
  try{

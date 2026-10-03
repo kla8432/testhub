@@ -19,7 +19,7 @@
   function roomSummary(rows,catalog=[],policy) {
     const alerts=roomAlerts(rows,catalog,policy);
     const unknown=rows.filter(r=>category(r).toLowerCase()==='hotswap'&&!Number.isFinite(r.roomQty)).length;
-    return `<section class="reorder-summary room-summary" aria-label="แจ้งเตือน Hotswap ในห้อง"><strong>Hotswap ในห้องใกล้หมด · ${alerts.length} รายการ</strong><p>อิงยอดตรวจนับล่าสุด · ${policy?.mode==='catalog'?'ใช้ Safety stock จากรายการนับ ถ้าไม่มีใช้ '+policy.limit:'แจ้งเตือนเมื่อเหลือไม่เกิน '+(policy?.limit??10)} ชิ้น${unknown?' · ยังไม่มีผลนับ '+unknown+' รายการ':''}</p>${alerts.length?`<details><summary>ดูรายการที่ต้องเบิกจากสโตร์ (${alerts.length})</summary><div class="reorder-overview-scroll"><table><thead><tr>${['รุ่น / Part name','P/N','ในห้อง','จุดแจ้งเตือน','สโตร์','สถานะ','นับล่าสุด'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${alerts.map(r=>`<tr><td><button class="board-link" data-go="stock" data-query="${escape(r.code)}">${text(r.model||r.name)}</button></td><td>${text(r.pn)}</td><td><strong class="stock-low">${number(r.roomQty)}</strong></td><td>${number(r.roomLimit)}</td><td>${number(r.qty)}</td><td>${escape(r.supply)}</td><td>${text(r.lastRoomCountDate)}</td></tr>`).join('')}</tbody></table></div></details>`:'<p>ไม่มีรายการที่ถึงจุดแจ้งเตือนในยอดที่ตรวจนับแล้ว</p>'}</section>`;
+    return `<section class="reorder-summary room-summary" aria-label="แจ้งเตือน Hotswap ห้องเก็บของ"><strong>Hotswap ห้องเก็บของใกล้หมด · ${alerts.length} รายการ</strong><p>อิงยอดตรวจนับล่าสุด · ${policy?.mode==='catalog'?'ใช้ Safety stock จากรายการนับ ถ้าไม่มีใช้ '+policy.limit:'แจ้งเตือนเมื่อเหลือไม่เกิน '+(policy?.limit??10)} ชิ้น${unknown?' · ยังไม่มีผลนับ '+unknown+' รายการ':''}</p>${alerts.length?`<details><summary>ดูรายการที่ต้องเบิกจากสโตร์ (${alerts.length})</summary><div class="reorder-overview-scroll"><table><thead><tr>${['รุ่น / Part name','P/N','ห้องเก็บของ','จุดแจ้งเตือน','สโตร์','สถานะ','นับล่าสุด'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${alerts.map(r=>`<tr><td><button class="board-link" data-go="stock" data-query="${escape(r.code)}">${text(r.model||r.name)}</button></td><td>${text(r.pn)}</td><td><strong class="stock-low">${number(r.roomQty)}</strong></td><td>${number(r.roomLimit)}</td><td>${number(r.qty)}</td><td>${escape(r.supply)}</td><td>${text(r.lastRoomCountDate)}</td></tr>`).join('')}</tbody></table></div></details>`:'<p>ไม่มีรายการที่ถึงจุดแจ้งเตือนในยอดที่ตรวจนับแล้ว</p>'}</section>`;
   }
   function reorder(row) {
     const planned=!!row.reorderPlan, annual=row.reorderPlan?.annualUsage;
@@ -54,13 +54,13 @@
   }
   function table(rows, canWrite, online, canEdit = false) {
     if (!rows.length) return '<div class="empty">ไม่พบรายการในหมวดหรือคำค้นนี้</div>';
-    const headings = ['หมวด', 'รุ่น', 'P/N', 'MPN', 'Part name', 'รายละเอียด', 'ผู้ผลิต', 'ราคา (บาท)', 'รอบเปลี่ยน', 'จุดสั่งซื้อ / Safety stock', 'คงเหลือสโตร์', 'PO/WIP รอรับ', 'สถานะสั่งซื้อ', 'ในห้อง (นับล่าสุด)', 'รูป'];
+    const headings = ['หมวด', 'รุ่น', 'P/N', 'MPN', 'Part name', 'รายละเอียด', 'ผู้ผลิต', 'ราคา (บาท)', 'รอบเปลี่ยน', 'จุดสั่งซื้อ / Safety stock', 'คงเหลือสโตร์', 'PO/WIP รอรับ', 'สถานะสั่งซื้อ', 'ห้องเก็บของ (นับล่าสุด)', 'รูป'];
     return `<div class="stock-table-scroll" role="region" aria-label="รายการสต็อก" tabindex="0"><table class="stock-table"><thead><tr>${headings.map(h => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>
       <td>${escape(category(row))}</td>
       <td><strong>${text(row.model)}</strong></td>
       <td class="mpn"><strong>${text(row.pn)}</strong></td>
       <td class="mpn">${text(row.code)}</td>
-      <td><strong>${text(row.name)}</strong>${canWrite ? `<button type="button" class="secondary stock-move" data-move="${escape(row.id)}" ${online ? '' : 'disabled'}>${canEdit?'เบิกจากสโตร์ / ตรวจนับ':'ตรวจนับในห้อง'}</button>` : ''}${canEdit ? `<button type="button" class="secondary stock-move" data-edit="${escape(row.id)}" ${online ? '' : 'disabled'}>แก้ไขรายการ</button>` : ''}</td>
+      <td><strong>${text(row.name)}</strong>${canWrite ? `<button type="button" class="secondary stock-move" data-move="${escape(row.id)}" ${online ? '' : 'disabled'}>${canEdit?'เบิกจากสโตร์ / ตรวจนับ':'ตรวจนับห้องเก็บของ'}</button>` : ''}${canEdit ? `<button type="button" class="secondary stock-move" data-edit="${escape(row.id)}" ${online ? '' : 'disabled'}>แก้ไขรายการ</button>` : ''}</td>
       <td class="stock-description">${text(row.description)}</td>
       <td>${text(row.manufacturer)}</td>
       <td class="numeric">${row.price == null || row.price === '' ? '—' : Number(row.price).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}</td>
