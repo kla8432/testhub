@@ -10,7 +10,12 @@
     const key=r.result==='Fail'?'fail':days<0?'overdue':days===0?'due':days<=7?'soon':'ok';
     return {due,days,key,label:{fail:'ไม่ผ่าน · ต้องดำเนินการ',overdue:'เกินกำหนด',due:'ครบกำหนดวันนี้',soon:'ใกล้ครบกำหนด',ok:'ปกติ'}[key]};
   }
-  function summary(rows){const records=latest(rows);const statuses=records.map(r=>status(r));return `<div class="panel"><h2>แจ้งเตือน PM · รอบ 30 วัน</h2><p class="muted">เตือนล่วงหน้า 7 วัน · นับจากวันที่แคลล่าสุด · วันที่ตามเวลาไทย · แสดงเฉพาะเครื่องที่มีประวัติ</p><div class="cards">${[['fail','ไม่ผ่าน'],['overdue','เกินกำหนด'],['due','ครบกำหนดวันนี้'],['soon','ใกล้ครบกำหนด']].map(([k,label])=>`<div class="card"><span>${label}</span><div class="value">${statuses.filter(s=>s.key===k).length}</div><small>เครื่อง</small></div>`).join('')}</div></div>`;}
+  function summary(rows,day=today()){
+    const priority={fail:0,overdue:1,due:2,soon:3,ok:4};
+    const records=latest(rows).map(r=>({...r,pm:status(r,day)}));
+    const alerts=records.filter(r=>r.pm.key!=='ok').sort((a,b)=>priority[a.pm.key]-priority[b.pm.key]||a.pm.days-b.pm.days);
+    return `<section class="panel module-pm-alerts" aria-label="แจ้งเตือนเครื่อง PM"><h2>แจ้งเตือน PM · ${alerts.length} เครื่อง</h2><p class="muted">รอบ 30 วัน · เตือนล่วงหน้า 7 วัน · อิงผลแคลล่าสุดของแต่ละเครื่อง</p><div class="cards">${[['fail','ไม่ผ่าน'],['overdue','เกินกำหนด'],['due','ครบกำหนดวันนี้'],['soon','ใกล้ครบกำหนด']].map(([k,label])=>`<button class="card pm-alert-filter" data-go="cal" data-filter="${k}"><span>${label}</span><div class="value">${records.filter(r=>r.pm.key===k).length}</div><small>เครื่อง · กดดูรายการ</small></button>`).join('')}</div><div class="module-alert-list">${alerts.length?alerts.map(r=>`<button class="module-alert-item" data-go="cal" data-machine="${esc(r.machine)}"><span><strong>เครื่อง ${esc(r.machine)} · ${esc(r.model)}</strong><small>แคลล่าสุด ${esc(r.date)} · ครบกำหนด ${r.pm.due}</small></span><span class="badge bad">${r.pm.label}${r.pm.days<0?' · เกิน '+-r.pm.days+' วัน':r.pm.days>0?' · อีก '+r.pm.days+' วัน':''}</span></button>`).join(''):`<p class="muted">${records.length?'ไม่มีเครื่องที่ต้องแจ้งเตือน PM ขณะนี้':'ยังไม่มีประวัติแคลสำหรับติดตาม PM'}</p>`}</div></section>`;
+  }
   function overview(rows,query='',filter='all'){
     const priority={fail:0,overdue:1,due:2,soon:3,ok:4};
     const selected=latest(rows).map(r=>({...r,pm:status(r)})).filter(r=>(filter==='all'||r.pm.key===filter)&&[r.machine,r.model,r.tech].join(' ').toLowerCase().includes(query.toLowerCase())).sort((a,b)=>priority[a.pm.key]-priority[b.pm.key]||a.pm.days-b.pm.days);

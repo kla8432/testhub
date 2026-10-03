@@ -108,13 +108,13 @@ function render() {
   $('add').disabled = !connected;
   if(page==='stock'&&stockMode==='count'){
     if(!currentUser){$('content').textContent='กำลังโหลดข้อมูล';return;}
-    $('content').innerHTML=stockTabs()+'<div id="weekly-count-root"></div>';
-    WeeklyCount.mount($('weekly-count-root'),{db,user:currentUser,connected,api,onState:next=>{db=next;}});return;
+    $('content').innerHTML=stockTabs()+'<div id="module-stock-alerts">'+StockView.roomSummary(stockRows(),db.countCatalog||[],roomAlertPolicy)+StockView.summary(stockRows())+'</div><div id="weekly-count-root"></div>';
+    WeeklyCount.mount($('weekly-count-root'),{db,user:currentUser,connected,api,onState:next=>{db=next;$('module-stock-alerts').innerHTML=StockView.roomSummary(stockRows(),db.countCatalog||[],roomAlertPolicy)+StockView.summary(stockRows());}});return;
   }
   WeeklyCount.unmount();
   if (page === 'dashboard') { $('content').innerHTML = dashboard(); return; }
   const stock = page === 'stock';
-  $('content').innerHTML = `${stock?stockTabs()+StockView.roomSummary(stockRows(),db.countCatalog||[],roomAlertPolicy)+StockView.summary(db.stock):''} ${page==='cal'?CalView.summary(db.cal):''}<div class="panel ${stock?'stock-panel':''}">
+  $('content').innerHTML = `${stock?stockTabs()+StockView.roomSummary(stockRows(),db.countCatalog||[],roomAlertPolicy)+StockView.summary(stockRows()):''} ${page==='cal'?CalView.summary(db.cal):''}<div class="panel ${stock?'stock-panel':''}">
     ${page==='setup'?`<div class="category-bar"><button class="secondary" data-setup-category="" aria-pressed="${!setupCategory}">ทุกหมวด</button>${[...new Set(db.setup.map(r=>r.category||'คู่มือเซ็ตอัพ'))].map(c=>`<button class="secondary" data-setup-category="${esc(c)}" aria-pressed="${setupCategory===c}">${esc(c)}</button>`).join('')}</div><label>เลือกรุ่น<select id="setup-model"><option value="">ทุกรุ่น</option>${[...new Set(db.setup.filter(r=>!setupCategory||(r.category||'คู่มือเซ็ตอัพ')===setupCategory).map(r=>r.model))].map(m=>`<option ${setupModel===m?'selected':''} value="${esc(m)}">${esc(m)}</option>`).join('')}</select></label>`:''}${stock ? StockView.categoryBar(db.stock, stockCategory) : ''}${page==='cal'?`<h2>สถานะล่าสุดของแต่ละเครื่อง</h2><label>กรองสถานะ<select id="cal-status">${[['all','ทุกสถานะ'],['fail','ไม่ผ่าน'],['overdue','เกินกำหนด'],['due','ครบกำหนดวันนี้'],['soon','ใกล้ครบกำหนด'],['ok','ปกติ']].map(([v,t])=>`<option value="${v}" ${calStatus===v?'selected':''}>${t}</option>`).join('')}</select></label>`:''}
     <div class="toolbar"><input id="search" aria-label="ค้นหารายการ" placeholder="${stock?'ค้นหารุ่น, P/N, MPN, Part name หรือรายละเอียด…':'ค้นหารหัสเครื่อง รุ่น หรือรายการ…'}" value="${esc(searchQuery)}">${stock?'<span id="result-count" class="muted" role="status"></span>':''}</div>
     <div id="results"></div></div>
