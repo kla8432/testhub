@@ -126,3 +126,4 @@ dialog::backdrop{background:#17255477}
 @media(max-width:640px){.module-alert-item{align-items:flex-start;flex-direction:column}.module-pm-alerts .cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 :root { --setup-action-gap: 10px; }
 .setup-actions{display:flex;flex-wrap:wrap;gap:var(--setup-action-gap);margin-top:16px;align-items:center}.setup-actions a{padding:10px 14px;text-decoration:none;border-radius:8px}.guide>a.guide-direct{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit}
+.setup-file-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}.setup-file-preview figure{margin:0;padding:8px;border:1px solid #dbeafe;border-radius:8px;max-width:180px}.setup-file-preview img{width:100%;height:110px;object-fit:contain}.setup-file-preview figcaption{font-size:12px;overflow-wrap:anywhere;margin-top:6px}
