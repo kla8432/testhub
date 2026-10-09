@@ -26,5 +26,10 @@ window.TestHubCloud=(()=>{
   if(!name||name.length>200||password.length<12||password.length>128)throw Error('กรุณาตรวจชื่อและรหัสผ่านอย่างน้อย 12 ตัวอักษร');
   return auth('signup',{email,password,data:{name}});
  }
- return {request,login,register,download,base};
+ async function uploadSetupImage(form){
+  settings();const s=await session();if(!s){location.replace(new URL('login.html',base));throw Error('กรุณาเข้าสู่ระบบ');}
+  const res=await fetch(config.url+'/functions/v1/testhub/api/setup-image',{method:'POST',headers:{apikey:config.publishableKey,Authorization:'Bearer '+s.access_token},body:form});
+  const result=await res.json();if(res.status===401){clear();location.replace(new URL('login.html',base));}if(!res.ok)throw Error(result.error||'อัปโหลดรูปไม่สำเร็จ');return result;
+ }
+ return {request,login,register,download,uploadSetupImage,base};
 })();

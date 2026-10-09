@@ -1,14 +1,15 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const pages={dashboard:['ภาพรวมระบบ','ติดตามสถานะเครื่องเทสและงานซ่อมบำรุงในที่เดียว','▦'],cal:['บันทึกคาลิเบรต','บันทึกผลการสอบเทียบ และตรวจสอบประวัติของแต่ละเครื่อง','✓'],setup:['คู่มือเซ็ตอัพ','รวบรวมวิธีต่อสายและขั้นตอนการตั้งค่าแยกตามรุ่น','▤'],downtime:['บันทึก Downtime','บันทึกชื่อรุ่น Order วันที่ทำ อาการและวิธีการแก้','◷'],stock:['จัดการสต็อก','แยกยอดสโตร์และห้องเก็บของ · เบิกจากสโตร์ · ยอดห้องเก็บของอิงผลนับล่าสุด','▧']};
-let db={cal:[],setup:[],downtime:[],stock:[],moves:[],revision:-1},page=['count','stock'].includes(new URLSearchParams(location.search).get('page'))?'stock':'dashboard',currentUser=null,connected=false;
+const initialPage=new URLSearchParams(location.search).get('page');
+let db={cal:[],setup:[],downtime:[],stock:[],moves:[],revision:-1},page=initialPage==='setup'?'setup':['count','stock'].includes(initialPage)?'stock':'dashboard',currentUser=null,connected=false;
 async function api(url,data){return TestHubCloud.request(url,data);}
 function connection(ok) {
   connected = ok;
   WeeklyCount.refresh(db,ok);
   document.querySelector('.local').textContent = ok ? '● เชื่อมต่อข้อมูลกลาง' : '● ขาดการเชื่อมต่อ';
   $('add').disabled = !ok;
-  document.querySelectorAll('[data-move]').forEach(button => button.disabled = !ok);
+  document.querySelectorAll('[data-move],[data-delete-setup],[data-edit]').forEach(button => button.disabled = !ok);
 }
 async function sync(){
   if(location.protocol==='file:'){$('content').textContent='เว็บเวอร์ชันนี้ใช้เซิร์ฟเวอร์ กรุณารัน npm start แล้วเปิด http://localhost:3000';$('add').hidden=true;return;}
@@ -82,7 +83,7 @@ function list(q = searchQuery) {
   const rows = db[page].filter(r => (page!=='setup'||((!setupCategory||(r.category||'คู่มือเซ็ตอัพ')===setupCategory)&&(!setupModel||r.model===setupModel))) && Object.values(r).some(v => String(v).toLowerCase().includes(q.toLowerCase())));
   if (page === 'cal') return CalView.overview(db.cal,q,calStatus); 
   if (page === 'downtime') return table(['ชื่อรุ่น','Order','วันที่ทำ','อาการ / สาเหตุ','วิธีการแก้'],rows.map(r=>[esc(r.model||r.machine||'—'),esc(r.order||'—'),esc(r.date||r.start?.slice(0,10)||'—'),esc(r.cause),esc(r.action)]));
-  return rows.length ? rows.map(r => /^https:\/\/kla8432\.github\.io\/testhub\/setup-guide\.html\?model=[a-z]+$/.test(r.url||'') ? `<a class="guide guide-direct" href="${r.url==='/guides/santorini/index.html'?'guide.html':esc(r.url)}"><strong>${esc(r.model)} Setup</strong><span class="muted">${esc(r.title)}</span><span>เปิดคู่มือ →</span></a>` : r.url === '/guides/santorini/index.html' ? `<a class="guide guide-direct" href="guide.html"><strong>แคล Santorini</strong><span class="muted">การแคล UA Mitsen · คู่มือพร้อมรูปประกอบ</span><span>เปิดคู่มือ →</span></a>` : `<details class="guide"><summary>${esc(r.model)} <span class="muted">· ${esc(r.title)}</span></summary><p class="muted">ผู้จัดทำ: ${esc(r.tech)}</p><h3>การต่อสาย / จุดเชื่อมต่อ</h3><pre>${esc(r.wiring)}</pre><h3>ขั้นตอนการเซ็ตอัพ</h3><pre>${esc(r.steps)}</pre>${r.url ? `<a href="${r.url==='/guides/santorini/index.html'?'guide.html':esc(r.url)}">เปิดคู่มือพร้อมรูปประกอบ ↗</a>` : ''}</details>`).join('') : '<div class="empty">ไม่พบคู่มือ</div>';
+  return rows.length ? rows.map(r => {const link='setup-guide.html?id='+encodeURIComponent(r.id),manage=['admin','engineer'].includes(currentUser?.role);return `<article class="guide"><a class="guide-direct" href="${esc(link)}"><strong>${esc(r.model)} · ${esc(r.title)}</strong><span class="muted">${esc(r.category||'คู่มือเซ็ตอัพ')}</span><span>เปิดคู่มือพร้อมรูปประกอบ →</span></a>${manage?`<div class="setup-actions"><a class="secondary" href="${esc(link)}#manage">เพิ่ม / ลบรูป</a><button class="secondary" data-edit="${esc(r.id)}" ${!connected?'disabled':''}>แก้ไขข้อมูล</button><button class="secondary" data-delete-setup="${esc(r.id)}" ${!connected?'disabled':''}>ลบคู่มือ</button></div>`:''}</article>`;}).join('') : '<div class="empty">ไม่พบคู่มือ</div>';
 }
 let stockMode=new URLSearchParams(location.search).get('page')==='count'||new URLSearchParams(location.search).get('view')==='count'?'count':'list';
 function stockTabs(){return `<div class="count-tabs" role="group" aria-label="ฟังก์ชัน Stock"><button type="button" data-stock-view="list" class="${stockMode==='list'?'':'secondary'}" aria-pressed="${stockMode==='list'}">รายการ Stock</button><button type="button" data-stock-view="count" class="${stockMode==='count'?'':'secondary'}" aria-pressed="${stockMode==='count'}">นับของห้องเก็บของรายสัปดาห์</button></div>`;}
@@ -104,7 +105,8 @@ function render() {
   $('nav').innerHTML = Object.entries(pages).map(([k,v])=>`<button data-page="${k}" class="${page===k?'active':''}">${v[2]}　${v[0]}</button>`).join('');
   $('title').textContent = $('breadcrumb').textContent = pages[page][0];
   $('subtitle').textContent = pages[page][1];
-  $('add').hidden = (page === 'dashboard' || page === 'setup' || (page === 'stock' && stockMode === 'count')) || !currentUser || currentUser.role === 'viewer' || (page === 'stock' && !['admin','engineer'].includes(currentUser.role));
+  $('add').hidden = (page === 'dashboard' || (page === 'stock' && stockMode === 'count')) || !currentUser || currentUser.role === 'viewer' || (['stock','setup'].includes(page) && !['admin','engineer'].includes(currentUser.role));
+  $('add').textContent=page==='setup'?'+ เพิ่มคู่มือ':'+ เพิ่มรายการ';
   $('add').disabled = !connected;
   if(page==='stock'&&stockMode==='count'){
     if(!currentUser){$('content').textContent='กำลังโหลดข้อมูล';return;}
@@ -129,8 +131,16 @@ function render() {
   const scroller = document.querySelector('.stock-table-scroll'); if (scroller) scroller.scrollLeft = scrollLeft;
 }
 const field=(name,label,type='text',value='',required=true)=>`<label>${label}${required?' *':''}${type==='textarea'?`<textarea name="${name}" ${required?'required':''}>${esc(value)}</textarea>`:`<input name="${name}" type="${type}" value="${esc(value)}" ${required?'required':''} ${type==='number'?'min="0" step="0.001"':''}>`}</label>`;
+async function deleteSetupGuide(button){
+ const r=db.setup.find(r=>r.id===button.dataset.deleteSetup);
+ if(!r||!connected||!['admin','engineer'].includes(currentUser?.role))return;
+ if(!confirm(`ลบคู่มือ ${r.model} · ${r.title} พร้อมรูปทั้งหมดออกจากรายการ?`))return;
+ button.disabled=true;
+ try{db=await api('/api/mutate',{requestId:crypto.randomUUID(),action:'delete',kind:'setup',id:r.id,version:r.version});render();toast();}
+ catch(e){alert(e.message);button.disabled=false;}
+}
 let editing=null,moving=null;
-function openForm(id=null,move=false){if(!currentUser||currentUser.role==='viewer'||!connected||(page==='stock'&&!move&&!['admin','engineer'].includes(currentUser.role)))return;editing=id;moving=move?id:null;const r=id?db[page].find(r=>r.id===id):{};if(!r)return;pendingRequest=null;formVersion=r.version;$('form-title').textContent=move?`${['admin','engineer'].includes(currentUser.role)?'เบิกจากสโตร์ / ตรวจนับ':'ตรวจนับห้องเก็บของ'} · ${r.name}`:pages[page][0];$('error').textContent='';let f='';if(move)f=`<p class="inventory-balances">สโตร์ <strong>${r.qty??'ยังไม่ระบุ'}</strong> · ห้องเก็บของ <strong>${r.roomQty??'ยังไม่นับ'}</strong></p><label>ประเภท<select name="direction">${['admin','engineer'].includes(currentUser.role)?'<option value="transfer">เบิกจากสโตร์เข้าห้องเก็บของ</option>':''}<option value="room-count">ตรวจนับ / ตั้งยอดห้องเก็บของ</option>${['admin','engineer'].includes(currentUser.role)?'<option value="store-in">รับเข้าเพิ่มที่สโตร์</option><option value="store-out">จ่ายออกจากสโตร์ไปที่อื่น</option>':''}</select></label><p class="field-hint">เบิกจากสโตร์: ลดเฉพาะสโตร์ · ยอดห้องเก็บของเปลี่ยนเมื่อบันทึกผลนับจริงเท่านั้น</p>`+field('qty','จำนวน','number')+field('tech','ผู้ดำเนินการ')+field('note','เหตุผล / เลขที่ใบเบิก');else if(page==='cal')f=field('machine','รหัสเครื่อง')+'<label>ประเภทเครื่อง *<select name="model" required><option value="LF">LF</option><option value="LH">LH</option><option value="IBAS">IBAS</option></select></label>'+field('date','วันที่คาลิเบรต','date',CalView.today())+'<label>ผลการคาลิเบรต<select name="result"><option>Pass</option><option>Fail</option></select></label>'+field('tech','ช่างผู้ดำเนินการ')+field('note','หมายเหตุ','textarea','',false);else if(page==='setup')f=field('category','หมวดคู่มือ','text',r.category||'คู่มือเซ็ตอัพ')+field('model','รุ่นเครื่อง','text',r.model)+field('title','ชื่อคู่มือ','text',r.title)+field('wiring','การต่อสาย: สายใด → ช่องใด','textarea',r.wiring)+field('steps','ขั้นตอนการตั้งค่า (แยกบรรทัดตามลำดับ)','textarea',r.steps)+field('url','ลิงก์รูปการต่อสาย / คู่มือ','text',r.url,false)+field('tech','ผู้จัดทำ','text',r.tech);else if(page==='downtime')f=field('model','ชื่อรุ่น')+field('order','Order')+field('date','วันที่ทำ','date',CalView.today())+field('cause','อาการ / สาเหตุ','textarea')+field('action','วิธีการแก้','textarea');else f=StockView.fields(db.stock,stockCategory,r);$('fields').innerHTML=f;if(page==='stock'&&!move)StockView.bindDemandPreview($('form'),r);const tech=$('form').elements.tech;if(tech){tech.value=currentUser.name;tech.readOnly=true;}if(currentUser.role==='viewer')return;$('dialog').showModal();}
+function openForm(id=null,move=false){if(!currentUser||currentUser.role==='viewer'||!connected||(['stock','setup'].includes(page)&&!move&&!['admin','engineer'].includes(currentUser.role)))return;editing=id;moving=move?id:null;const r=id?db[page].find(r=>r.id===id):{};if(!r)return;pendingRequest=null;formVersion=r.version;$('form-title').textContent=move?`${['admin','engineer'].includes(currentUser.role)?'เบิกจากสโตร์ / ตรวจนับ':'ตรวจนับห้องเก็บของ'} · ${r.name}`:pages[page][0];$('error').textContent='';let f='';if(move)f=`<p class="inventory-balances">สโตร์ <strong>${r.qty??'ยังไม่ระบุ'}</strong> · ห้องเก็บของ <strong>${r.roomQty??'ยังไม่นับ'}</strong></p><label>ประเภท<select name="direction">${['admin','engineer'].includes(currentUser.role)?'<option value="transfer">เบิกจากสโตร์เข้าห้องเก็บของ</option>':''}<option value="room-count">ตรวจนับ / ตั้งยอดห้องเก็บของ</option>${['admin','engineer'].includes(currentUser.role)?'<option value="store-in">รับเข้าเพิ่มที่สโตร์</option><option value="store-out">จ่ายออกจากสโตร์ไปที่อื่น</option>':''}</select></label><p class="field-hint">เบิกจากสโตร์: ลดเฉพาะสโตร์ · ยอดห้องเก็บของเปลี่ยนเมื่อบันทึกผลนับจริงเท่านั้น</p>`+field('qty','จำนวน','number')+field('tech','ผู้ดำเนินการ')+field('note','เหตุผล / เลขที่ใบเบิก');else if(page==='cal')f=field('machine','รหัสเครื่อง')+'<label>ประเภทเครื่อง *<select name="model" required><option value="LF">LF</option><option value="LH">LH</option><option value="IBAS">IBAS</option></select></label>'+field('date','วันที่คาลิเบรต','date',CalView.today())+'<label>ผลการคาลิเบรต<select name="result"><option>Pass</option><option>Fail</option></select></label>'+field('tech','ช่างผู้ดำเนินการ')+field('note','หมายเหตุ','textarea','',false);else if(page==='setup')f=field('category','หมวดคู่มือ','text',r.category||'คู่มือเซ็ตอัพ')+field('model','รุ่นเครื่อง','text',r.model)+field('title','ชื่อคู่มือ','text',r.title)+field('wiring','การต่อสาย: สายใด → ช่องใด','textarea',r.wiring,false)+field('steps','ขั้นตอนการตั้งค่า (แยกบรรทัดตามลำดับ)','textarea',r.steps,false)+field('url','ลิงก์รูปการต่อสาย / คู่มือ','text',r.url,false)+field('tech','ผู้จัดทำ','text',r.tech);else if(page==='downtime')f=field('model','ชื่อรุ่น')+field('order','Order')+field('date','วันที่ทำ','date',CalView.today())+field('cause','อาการ / สาเหตุ','textarea')+field('action','วิธีการแก้','textarea');else f=StockView.fields(db.stock,stockCategory,r);$('fields').innerHTML=f;if(page==='stock'&&!move)StockView.bindDemandPreview($('form'),r);const tech=$('form').elements.tech;if(tech){tech.value=currentUser.name;tech.readOnly=true;}if(currentUser.role==='viewer')return;$('dialog').showModal();}
 $('nav').onclick = e => {
   const button=e.target.closest('[data-page]');
   if(button){ page=button.dataset.page; stockMode='list'; searchQuery=''; render(); }
@@ -138,6 +148,8 @@ $('nav').onclick = e => {
 $('add').onclick=()=>openForm();
 $('close').onclick=()=>$('dialog').close();
 $('content').onclick=e=>{
+  const removeGuide=e.target.closest('[data-delete-setup]');
+  if(removeGuide){deleteSetupGuide(removeGuide);return;}
   const photo=e.target.closest('[data-stock-photo]');
   if(photo){openStockPhotos(photo.dataset.stockPhoto);return;}
   const stockTab=e.target.closest('[data-stock-view]');

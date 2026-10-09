@@ -124,3 +124,5 @@ dialog::backdrop{background:#17255477}
 .room-summary .reorder-overview-scroll,.module-store-alerts .reorder-overview-scroll{max-height:270px}
 .module-store-alerts .board-link{white-space:normal;text-align:left}
 @media(max-width:640px){.module-alert-item{align-items:flex-start;flex-direction:column}.module-pm-alerts .cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+:root { --setup-action-gap: 10px; }
+.setup-actions{display:flex;flex-wrap:wrap;gap:var(--setup-action-gap);margin-top:16px;align-items:center}.setup-actions a{padding:10px 14px;text-decoration:none;border-radius:8px}.guide>a.guide-direct{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit}
